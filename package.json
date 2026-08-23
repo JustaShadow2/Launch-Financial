@@ -1,0 +1,17 @@
+{
+  "name": "wealthsimple-clone",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Simulated trading and investment app (Wealthsimple clone) with mock money",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "install:all": "npm install --workspaces --include-workspace-root",
+    "dev:backend": "npm run dev --workspace backend",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "build": "npm run build --workspace backend && npm run build --workspace frontend",
+    "seed": "npm run seed --workspace backend"
+  }
+}

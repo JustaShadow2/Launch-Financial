@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  createdAt    DateTime  @default(now())
+
+  // Learning / gamification state (Duolingo-style).
+  xp            Int       @default(0)
+  currentStreak Int       @default(0)
+  longestStreak Int       @default(0)
+  // The date (YYYY-MM-DD) the user last completed a lesson, for streak logic.
+  lastLessonDay String?
+
+  accounts     Account[]
+  watchlist    WatchlistItem[]
+  lessonProgress LessonProgress[]
+}
+
+// Per-user completion record for a lesson. Content itself is static (see
+// data/learningContent.ts); only progress is persisted here.
+model LessonProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId    String
+  lessonId    String
+  completedAt DateTime @default(now())
+  // Score on the most recent completion, e.g. 3 correct of 3.
+  correct     Int      @default(0)
+  total       Int      @default(0)
+  xpEarned    Int      @default(0)
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+}
+
+// A Wealthsimple-style account (e.g. Personal / TFSA / RRSP). Each holds cash + positions.
+model Account {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         String    // PERSONAL, TFSA, RRSP, CRYPTO
+  name         String
+  cashBalance  Float     @default(0)
+  createdAt    DateTime  @default(now())
+
+  holdings     Holding[]
+  transactions Transaction[]
+  orders       Order[]
+
+  @@index([userId])
+}
+
+// A position in a symbol within an account.
+model Holding {
+  id           String    @id @default(cuid())
+  accountId    String
+  account      Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  symbol       String
+  quantity     Float     @default(0)
+  avgCost      Float     @default(0) // average cost basis per share
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([accountId, symbol])
+  @@index([accountId])
+}
+
+// Cash ledger + trade ledger entries.
+model Transaction {
+  id           String    @id @default(cuid())
+  accountId    String
+  account      Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type         String    // DEPOSIT, WITHDRAWAL, BUY, SELL
+  symbol       String?
+  quantity     Float?
+  price        Float?
+  amount       Float     // signed cash impact (+ increases cash, - decreases cash)
+  note         String?
+  createdAt    DateTime  @default(now())
+
+  @@index([accountId])
+}
+
+// Order record (market orders execute immediately in simulation).
+model Order {
+  id           String    @id @default(cuid())
+  accountId    String
+  account      Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  symbol       String
+  side         String    // BUY, SELL
+  type         String    // MARKET
+  quantity     Float
+  status       String    // FILLED, REJECTED
+  filledPrice  Float?
+  createdAt    DateTime  @default(now())
+
+  @@index([accountId])
+}
+
+model WatchlistItem {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol       String
+  createdAt    DateTime  @default(now())
+
+  @@unique([userId, symbol])
+  @@index([userId])
+}

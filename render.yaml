@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: wealthsimple-clone
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # JWT signing secret. Render generates a strong random value.
+      - key: JWT_SECRET
+        generateValue: true
+      # Real market data (optional). Set these in the Render dashboard to enable
+      # live quotes/charts; leave unset to use the built-in price simulator.
+      - key: FINNHUB_API_KEY
+        sync: false
+      - key: TWELVE_DATA_API_KEY
+        sync: false

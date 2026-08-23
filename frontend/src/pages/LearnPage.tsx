@@ -1,0 +1,169 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { api } from "../api/client";
+import { CourseView, DailyLesson, LearnStats } from "../api/types";
+
+export default function LearnPage() {
+  const [courses, setCourses] = useState<CourseView[]>([]);
+  const [stats, setStats] = useState<LearnStats | null>(null);
+  const [daily, setDaily] = useState<DailyLesson | null>(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    Promise.all([
+      api.get<{ courses: CourseView[] }>("/learn/courses"),
+      api.get<LearnStats>("/learn/stats"),
+      api.get<{ lesson: DailyLesson | null }>("/learn/daily"),
+    ])
+      .then(([c, s, d]) => {
+        setCourses(c.courses);
+        setStats(s);
+        setDaily(d.lesson);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="loading">Loading your academy…</div>;
+
+  return (
+    <div>
+      <h1 className="page-title">Learn</h1>
+      <p className="page-sub">Build your investing knowledge — one lesson a day.</p>
+
+      {/* Stats strip */}
+      <div className="grid grid-3">
+        <div className="card learn-stat">
+          <div className="learn-stat-icon">🔥</div>
+          <div>
+            <div className="stat-value">{stats?.currentStreak ?? 0}</div>
+            <div className="stat-label">day streak</div>
+          </div>
+        </div>
+        <div className="card learn-stat">
+          <div className="learn-stat-icon">⚡</div>
+          <div>
+            <div className="stat-value">{stats?.xp ?? 0}</div>
+            <div className="stat-label">total XP</div>
+          </div>
+        </div>
+        <div className="card learn-stat">
+          <div className="learn-stat-icon">🎓</div>
+          <div>
+            <div className="stat-value">
+              {stats?.completedLessons ?? 0}
+              <span className="muted" style={{ fontSize: 18 }}>
+                /{stats?.totalLessons ?? 0}
+              </span>
+            </div>
+            <div className="stat-label">lessons done</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Daily plan card */}
+      {daily ? (
+        <div className="card daily-card mt-16">
+          <div>
+            <div className="row" style={{ gap: 8, marginBottom: 4 }}>
+              <span className="pill">{stats?.dailyGoalMet ? "Bonus lesson" : "Today's lesson"}</span>
+              {stats?.dailyGoalMet && <span className="pill" style={{ color: "var(--gain)" }}>Daily goal met ✓</span>}
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 700 }}>
+              {daily.courseIcon} {daily.title}
+            </div>
+            <div className="muted">
+              {daily.courseTitle} · {daily.minutes} min · +{daily.xp} XP
+            </div>
+          </div>
+          <button className="btn" onClick={() => navigate(`/learn/lesson/${daily.lessonId}`)}>
+            {stats?.dailyGoalMet ? "Keep going" : "Start lesson"}
+          </button>
+        </div>
+      ) : (
+        <div className="card daily-card mt-16">
+          <div>
+            <div style={{ fontSize: 20, fontWeight: 700 }}>🏆 You've completed every lesson!</div>
+            <div className="muted">Amazing work. Revisit any lesson to keep your streak alive.</div>
+          </div>
+        </div>
+      )}
+
+      {/* Courses */}
+      <h2 style={{ fontSize: 20, marginTop: 32 }}>Courses</h2>
+      <div className="learn-courses">
+        {courses.map((course) => (
+          <CourseCard key={course.id} course={course} onOpenLesson={(id) => navigate(`/learn/lesson/${id}`)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CourseCard({
+  course,
+  onOpenLesson,
+}: {
+  course: CourseView;
+  onOpenLesson: (lessonId: string) => void;
+}) {
+  return (
+    <div className="card course-card" style={{ borderTop: `3px solid ${course.color}` }}>
+      <div className="row spread" style={{ alignItems: "flex-start" }}>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>
+            <span style={{ marginRight: 8 }}>{course.icon}</span>
+            {course.title}
+          </div>
+          <div className="muted" style={{ fontSize: 14, maxWidth: 460, marginTop: 4 }}>
+            {course.description}
+          </div>
+        </div>
+        <span className={`pill level-${course.level.toLowerCase()}`}>{course.level}</span>
+      </div>
+
+      {/* Progress bar */}
+      <div className="progress-track mt-16">
+        <div
+          className="progress-fill"
+          style={{ width: `${course.percent}%`, background: course.color }}
+        />
+      </div>
+      <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+        {course.completedLessons} of {course.totalLessons} lessons · {course.percent}%
+      </div>
+
+      {/* Lesson path */}
+      <div className="lesson-path mt-16">
+        {course.lessons.map((lesson, i) => {
+          const locked = lesson.status === "locked";
+          return (
+            <button
+              key={lesson.id}
+              className={`lesson-node ${lesson.status}`}
+              disabled={locked}
+              onClick={() => onOpenLesson(lesson.id)}
+              title={lesson.title}
+              style={
+                lesson.status === "completed" || lesson.status === "current"
+                  ? { borderColor: course.color }
+                  : undefined
+              }
+            >
+              <span className="lesson-node-badge" style={lesson.status === "completed" ? { background: course.color } : undefined}>
+                {lesson.status === "completed" ? "✓" : locked ? "🔒" : i + 1}
+              </span>
+              <span className="lesson-node-text">
+                <span className="lesson-node-title">{lesson.title}</span>
+                <span className="lesson-node-sub muted">
+                  {lesson.subtitle} · +{lesson.xp} XP
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
