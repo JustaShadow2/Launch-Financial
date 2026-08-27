@@ -78,8 +78,9 @@ export interface SymbolInfo {
   symbol: string;
   name: string;
   type: string;
-  basePrice: number;
-  volatility: number;
+  // Legacy simulator fields (no longer returned by dynamic search).
+  basePrice?: number;
+  volatility?: number;
 }
 
 // ── Learning ────────────────────────────────────────────────────────────────

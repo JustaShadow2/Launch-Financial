@@ -1,47 +1,29 @@
-import { SYMBOL_MAP, SYMBOLS, SymbolInfo } from "../data/symbols";
-import { getRealPreviousClose, getRealPrice, hasRealData } from "./quoteCache";
+import {
+  AssetType,
+  fallbackMeta,
+  getSymbolMeta,
+  isCryptoSymbol,
+  normalizeSymbol,
+  searchSymbols as searchProviderSymbols,
+  SymbolMetaInfo,
+  upsertSymbolMeta,
+} from "./symbols";
+import { getRealPreviousClose, getRealPrice, hasRealData, warmSymbol } from "./quoteCache";
+import { fetchQuote as fetchFinnhubQuote, isConfigured as finnhubReady } from "./finnhub";
+import { fetchQuote as fetchTdQuote, isConfigured as twelveDataReady } from "./twelvedata";
 
 /**
- * Market-data engine.
+ * Market-data engine (dynamic, search-only).
  *
- * Real quotes: when a Finnhub API key is configured, real-time stock/ETF prices
- * are served from the in-memory quote cache (see quoteCache.ts). No real money
- * is ever involved — this only affects the *prices* shown for trading.
+ * There is no static universe and no price simulator. Any real symbol can be
+ * priced. Quotes come from:
+ *   - the in-memory quote cache (kept warm for watchlist symbols), or
+ *   - an on-demand provider fetch (Finnhub for stocks/ETFs, Twelve Data for
+ *     crypto or as a fallback), briefly cached.
  *
- * Simulated fallback: for crypto, when no API key is set, or when a real quote
- * is temporarily unavailable (rate limit / network), a deterministic seeded
- * random walk is used instead so the app always has believable prices.
+ * If a symbol can't be resolved to a real price, callers get a clear error
+ * rather than fabricated data.
  */
-
-// Simple deterministic hash -> seed
-function hashString(str: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-// Mulberry32 PRNG for reproducible sequences
-function mulberry32(seed: number) {
-  return function () {
-    seed |= 0;
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-// Convert uniform [0,1) to approx standard normal via Box-Muller
-function randNormal(rand: () => number): number {
-  let u = 0;
-  let v = 0;
-  while (u === 0) u = rand();
-  while (v === 0) v = rand();
-  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-}
 
 export interface Quote {
   symbol: string;
@@ -60,182 +42,214 @@ export interface Candle {
   price: number;
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+export class UnknownSymbolError extends Error {
+  status = 404;
+  constructor(symbol: string) {
+    super(`No market data available for symbol: ${symbol}`);
+  }
+}
 
-// Round to sensible precision (crypto sub-dollar assets keep more decimals).
 function roundPrice(price: number): number {
   if (price < 1) return Math.round(price * 1e6) / 1e6;
-  if (price < 100) return Math.round(price * 100) / 100;
   return Math.round(price * 100) / 100;
 }
 
-// How many days of history the random walk spans. The walk restarts from
-// basePrice at the start of each window so prices stay realistically anchored
-// near basePrice instead of compounding drift over ~20k epoch days.
-const WINDOW_DAYS = 365;
+// ── On-demand quote fetch with a short-TTL cache ─────────────────────────────
+
+interface FetchedQuote {
+  price: number;
+  previousClose: number;
+  fetchedAt: number;
+}
+
+const onDemandCache = new Map<string, FetchedQuote>();
+const ON_DEMAND_TTL_MS = 15_000;
 
 /**
- * Generate a daily closing price for the given absolute epoch day index.
- * Uses a seeded, mean-reverting random walk anchored to basePrice so the
- * series is reproducible and stays in a believable range.
+ * Fetch a live quote for a symbol from the appropriate provider.
+ * Stocks/ETFs: Finnhub first, Twelve Data fallback. Crypto: Twelve Data.
  */
-function dailyClose(info: SymbolInfo, dayIndex: number): number {
-  // Position within the current rolling window; the walk restarts each window.
-  const windowStart = Math.floor(dayIndex / WINDOW_DAYS) * WINDOW_DAYS;
-  const step = dayIndex - windowStart;
+async function fetchLiveQuote(symbol: string): Promise<{ price: number; previousClose: number } | null> {
+  const s = normalizeSymbol(symbol);
 
-  // Seed depends on the window so each year has a distinct but stable path.
-  const walkRand = mulberry32(hashString(info.symbol) + windowStart * 2654435761);
-
-  let price = info.basePrice;
-  for (let i = 0; i < step; i++) {
-    const shock = randNormal(walkRand) * info.volatility;
-    // Mean reversion pulls price gently back toward basePrice.
-    const reversion = (info.basePrice - price) / info.basePrice * 0.02;
-    price = price * (1 + shock + reversion);
-    // Clamp to a believable band around the reference price.
-    const low = info.basePrice * 0.55;
-    const high = info.basePrice * 1.8;
-    if (price < low) price = low;
-    if (price > high) price = high;
+  if (isCryptoSymbol(s)) {
+    if (!twelveDataReady()) return null;
+    const q = await fetchTdQuote(s);
+    return q ? { price: q.price, previousClose: q.previousClose } : null;
   }
 
-  // Small day-stable jitter so consecutive days differ slightly.
-  const dayRand = mulberry32(hashString(info.symbol) + dayIndex * 40503);
-  price = price * (1 + (dayRand() - 0.5) * info.volatility * 0.3);
-  return roundPrice(Math.max(price, info.basePrice * 0.05));
-}
-
-// Simulated current price: today's close plus an intraday component that
-// advances with wall-clock time so the number visibly moves.
-function simulatedPrice(info: SymbolInfo, at: number): number {
-  const dayIndex = Math.floor(at / DAY_MS);
-  const todayClose = dailyClose(info, dayIndex);
-
-  // Intraday: seed changes every ~5s so price ticks.
-  const tick = Math.floor(at / 5000);
-  const rand = mulberry32(hashString(info.symbol + ":intraday") + tick);
-  const intraday = (rand() - 0.5) * 2 * info.volatility * 0.4; // +/- fraction
-  return roundPrice(Math.max(todayClose * (1 + intraday), info.basePrice * 0.05));
-}
-
-function simulatedPreviousClose(info: SymbolInfo, at: number): number {
-  const dayIndex = Math.floor(at / DAY_MS) - 1;
-  return dailyClose(info, dayIndex);
+  // Stocks / ETFs: prefer Finnhub.
+  if (finnhubReady()) {
+    const q = await fetchFinnhubQuote(s);
+    if (q) return { price: q.current, previousClose: q.previousClose };
+  }
+  // Fallback to Twelve Data (also covers the no-Finnhub-key case).
+  if (twelveDataReady()) {
+    const q = await fetchTdQuote(s);
+    if (q) return { price: q.price, previousClose: q.previousClose };
+  }
+  return null;
 }
 
 /**
- * Live price. Prefers a real cached quote (stocks/ETFs when a key is set),
- * otherwise falls back to the deterministic simulator.
+ * Resolve a symbol's current price + previous close, using (in order):
+ *  1. the warm watchlist cache (sync),
+ *  2. the short-TTL on-demand cache,
+ *  3. a fresh provider fetch.
+ * Returns null if no real price can be obtained.
  */
-export function getPrice(symbol: string, at: number = Date.now()): number {
-  const info = SYMBOL_MAP[symbol.toUpperCase()];
-  if (!info) throw new Error(`Unknown symbol: ${symbol}`);
+async function resolveQuote(
+  symbol: string
+): Promise<{ price: number; previousClose: number; source: "real" } | null> {
+  const s = normalizeSymbol(symbol);
 
-  const real = getRealPrice(info.symbol);
-  if (real != null) return roundPrice(real);
+  // 1. Warm cache (watchlist symbols refreshed in the background).
+  const warmPrice = getRealPrice(s);
+  if (warmPrice != null) {
+    const pc = getRealPreviousClose(s);
+    return { price: warmPrice, previousClose: pc ?? warmPrice, source: "real" };
+  }
 
-  return simulatedPrice(info, at);
+  // 2. Short-TTL on-demand cache.
+  const cached = onDemandCache.get(s);
+  if (cached && Date.now() - cached.fetchedAt < ON_DEMAND_TTL_MS) {
+    return { price: cached.price, previousClose: cached.previousClose, source: "real" };
+  }
+
+  // 3. Live fetch.
+  const live = await fetchLiveQuote(s);
+  if (!live) return null;
+  onDemandCache.set(s, { ...live, fetchedAt: Date.now() });
+  return { ...live, source: "real" };
 }
 
-export function getPreviousClose(symbol: string, at: number = Date.now()): number {
-  const info = SYMBOL_MAP[symbol.toUpperCase()];
-  if (!info) throw new Error(`Unknown symbol: ${symbol}`);
+// ── Public API (async) ───────────────────────────────────────────────────────
 
-  const realPc = getRealPreviousClose(info.symbol);
-  if (realPc != null) return roundPrice(realPc);
+export async function getPrice(symbol: string): Promise<number> {
+  const q = await resolveQuote(symbol);
+  if (!q) throw new UnknownSymbolError(symbol);
+  return roundPrice(q.price);
+}
 
-  return simulatedPreviousClose(info, at);
+export async function getPreviousClose(symbol: string): Promise<number> {
+  const q = await resolveQuote(symbol);
+  if (!q) throw new UnknownSymbolError(symbol);
+  return roundPrice(q.previousClose);
 }
 
 export function isRealQuote(symbol: string): boolean {
   return hasRealData(symbol);
 }
 
-export function getQuote(symbol: string, at: number = Date.now()): Quote {
-  const info = SYMBOL_MAP[symbol.toUpperCase()];
-  if (!info) throw new Error(`Unknown symbol: ${symbol}`);
-  const price = getPrice(symbol, at);
-  const previousClose = getPreviousClose(symbol, at);
+/**
+ * Full quote including display metadata. Persists symbol metadata on first
+ * sight so portfolio/watchlist can render names/types later without a lookup.
+ */
+export async function getQuote(symbol: string): Promise<Quote> {
+  const s = normalizeSymbol(symbol);
+  const resolved = await resolveQuote(s);
+  if (!resolved) throw new UnknownSymbolError(symbol);
+
+  const meta = await resolveMeta(s);
+  const price = roundPrice(resolved.price);
+  const previousClose = roundPrice(resolved.previousClose);
   const change = roundPrice(price - previousClose);
-  const changePercent = previousClose ? (change / previousClose) * 100 : 0;
+  const changePercent = previousClose ? Math.round((change / previousClose) * 10000) / 100 : 0;
+
   return {
-    symbol: info.symbol,
-    name: info.name,
-    type: info.type,
+    symbol: s,
+    name: meta.name,
+    type: meta.type,
     price,
     previousClose,
     change,
-    changePercent: Math.round(changePercent * 100) / 100,
-    source: hasRealData(info.symbol) ? "real" : "simulated",
-    updatedAt: new Date(at).toISOString(),
+    changePercent,
+    source: "real",
+    updatedAt: new Date().toISOString(),
   };
 }
 
-export function getQuotes(symbols: string[], at: number = Date.now()): Quote[] {
-  return symbols
-    .filter((s) => SYMBOL_MAP[s.toUpperCase()])
-    .map((s) => getQuote(s, at));
-}
-
-export function getAllQuotes(at: number = Date.now()): Quote[] {
-  return SYMBOLS.map((s) => getQuote(s.symbol, at));
+/**
+ * Quotes for a set of symbols. Fetched concurrently; symbols that can't be
+ * resolved are omitted from the result (rather than failing the whole batch).
+ */
+export async function getQuotes(symbols: string[]): Promise<Quote[]> {
+  const unique = Array.from(new Set(symbols.map(normalizeSymbol)));
+  const results = await Promise.all(
+    unique.map(async (s) => {
+      try {
+        return await getQuote(s);
+      } catch {
+        return null;
+      }
+    })
+  );
+  return results.filter((q): q is Quote => q !== null);
 }
 
 /**
- * Historical daily series for a range. `range` in trading-ish days.
+ * Resolve display metadata: memory/DB cache → provider search → persisted.
  */
-function simulatedHistory(info: SymbolInfo, days: number, at: number): Candle[] {
-  const todayIndex = Math.floor(at / DAY_MS);
+async function resolveMeta(symbol: string): Promise<SymbolMetaInfo> {
+  const s = normalizeSymbol(symbol);
+  const existing = await getSymbolMeta(s);
+  if (existing) return existing;
 
-  // The simulated series is anchored to basePrice. When we have a real live
-  // price, scale the historical curve so its last point matches the real
-  // quote — this keeps the chart visually consistent with the shown price.
-  const realPrice = getRealPrice(info.symbol);
-  const simToday = simulatedPrice(info, at);
-  const scale = realPrice != null && simToday > 0 ? realPrice / simToday : 1;
-
-  const out: Candle[] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const dayIndex = todayIndex - i;
-    out.push({ t: dayIndex * DAY_MS, price: roundPrice(dailyClose(info, dayIndex) * scale) });
+  // Try to enrich from search so we store a real company name/type.
+  let info: SymbolMetaInfo | null = null;
+  try {
+    const results = await searchProviderSymbols(s);
+    info = results.find((r) => r.symbol === s) || null;
+  } catch {
+    info = null;
   }
-  out.push({ t: at, price: getPrice(info.symbol, at) });
-  return out;
+  const meta: SymbolMetaInfo = info || fallbackMeta(s);
+  // Persist (best effort) so future renders are instant.
+  upsertSymbolMeta(meta).catch(() => {});
+  return meta;
+}
+
+/** Ensure a symbol is added to the warm cache (used when it's watchlisted). */
+export function ensureWarm(symbol: string): void {
+  warmSymbol(normalizeSymbol(symbol));
+}
+
+// ── History ──────────────────────────────────────────────────────────────────
+
+const RANGE_DAYS: Record<string, number> = { "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
+
+export function rangeToDays(range: string): number {
+  return RANGE_DAYS[range] || 30;
 }
 
 /**
- * Historical daily series. Prefers real candles from Twelve Data (cached);
- * falls back to the simulated series (anchored to the real price when known).
+ * Real daily history from Twelve Data (cached). Appends the freshest live
+ * price as the final point when the last candle is stale. Returns [] if no
+ * real history is available.
  */
-export async function getHistory(
-  symbol: string,
-  days: number,
-  at: number = Date.now()
-): Promise<Candle[]> {
-  const info = SYMBOL_MAP[symbol.toUpperCase()];
-  if (!info) throw new Error(`Unknown symbol: ${symbol}`);
-
-  // Lazy import to avoid a circular module dependency at load time.
+export async function getHistory(symbol: string, days: number): Promise<Candle[]> {
+  const s = normalizeSymbol(symbol);
   const { getRealHistory } = await import("./historyCache");
-  const real = await getRealHistory(info.symbol, days);
-  if (real && real.length > 1) {
-    // Append the freshest live price as the final point if it's newer.
-    const livePrice = getPrice(info.symbol, at);
+  const real = await getRealHistory(s, days);
+  if (!real || real.length === 0) return [];
+
+  // Append a fresh live point if the last candle is over a minute old.
+  try {
+    const live = await getPrice(s);
     const last = real[real.length - 1];
-    if (at - last.t > 60 * 1000) {
-      return [...real, { t: at, price: livePrice }];
+    if (Date.now() - last.t > 60 * 1000) {
+      return [...real, { t: Date.now(), price: live }];
     }
-    return real;
+  } catch {
+    // No live price; return the historical series as-is.
   }
-
-  return simulatedHistory(info, days, at);
+  return real;
 }
 
-export function searchSymbols(query: string): SymbolInfo[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return SYMBOLS.slice(0, 20);
-  return SYMBOLS.filter(
-    (s) => s.symbol.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)
-  ).slice(0, 25);
+// ── Search (delegates to the dynamic provider search) ────────────────────────
+
+export async function searchSymbols(query: string): Promise<SymbolMetaInfo[]> {
+  return searchProviderSymbols(query);
 }
+
+export type { AssetType };

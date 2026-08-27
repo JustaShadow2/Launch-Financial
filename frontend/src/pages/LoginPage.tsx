@@ -52,7 +52,7 @@ export default function LoginPage() {
         <div className="demo-hint">
           Demo login is prefilled: <code>demo@wealthsimple.dev</code> / <code>password123</code>
           <br />
-          All money and prices are simulated. No real funds involved.
+          Real market prices, simulated money. No real funds involved.
         </div>
       </div>
     </div>

@@ -118,3 +118,14 @@ model WatchlistItem {
   @@unique([userId, symbol])
   @@index([userId])
 }
+
+// Cached metadata for any symbol we've resolved via a data provider. Because
+// symbols are now searched dynamically (no static universe), this table is the
+// source of truth for a symbol's display name and asset type at render time
+// (portfolio positions, watchlist rows) without needing a live search.
+model SymbolMeta {
+  symbol      String   @id
+  name        String
+  assetType   String   // STOCK, ETF, CRYPTO
+  updatedAt   DateTime @updatedAt
+}

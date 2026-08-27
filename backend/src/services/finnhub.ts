@@ -1,5 +1,5 @@
 import { config } from "../lib/config";
-import { toFinnhubSymbol } from "../data/symbols";
+import { toFinnhubSymbol } from "./symbols";
 
 /**
  * Thin client for Finnhub's free real-time US stock/ETF quote endpoint.
@@ -42,7 +42,7 @@ export async function fetchQuote(symbol: string): Promise<FinnhubQuote | null> {
     clearTimeout(timeout);
 
     if (res.status === 429) {
-      // Rate limited; caller will fall back to the simulator.
+      // Rate limited; caller decides how to handle a missing quote.
       return null;
     }
     if (!res.ok) return null;
@@ -57,7 +57,7 @@ export async function fetchQuote(symbol: string): Promise<FinnhubQuote | null> {
       timestamp: data.t ? data.t * 1000 : Date.now(),
     };
   } catch {
-    // Network error, timeout, abort -> fall back to simulator.
+    // Network error, timeout, abort -> no quote available.
     return null;
   }
 }

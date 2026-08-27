@@ -1,12 +1,29 @@
 import { prisma } from "../lib/prisma";
-import { getPrice } from "./marketData";
-import { isValidSymbol } from "../data/symbols";
+import { getQuote, UnknownSymbolError } from "./marketData";
+import { normalizeSymbol } from "./symbols";
 
 export class TradeError extends Error {
   status: number;
   constructor(message: string, status = 400) {
     super(message);
     this.status = status;
+  }
+}
+
+/**
+ * Resolve a live tradeable price for a symbol. A successful quote also acts as
+ * validation (any real symbol works; unknown ones throw). getQuote persists
+ * the symbol's metadata so positions render with a proper name/type.
+ */
+async function priceFor(symbol: string): Promise<number> {
+  try {
+    const quote = await getQuote(symbol);
+    return quote.price;
+  } catch (e) {
+    if (e instanceof UnknownSymbolError) {
+      throw new TradeError(`No market data available for ${symbol}. Check the symbol and try again.`);
+    }
+    throw e;
   }
 }
 
@@ -29,12 +46,11 @@ function money(n: number): number {
 }
 
 export async function executeBuy({ accountId, userId, symbol, quantity }: TradeInput) {
-  symbol = symbol.toUpperCase();
-  if (!isValidSymbol(symbol)) throw new TradeError(`Unknown symbol: ${symbol}`);
+  symbol = normalizeSymbol(symbol);
   if (!(quantity > 0)) throw new TradeError("Quantity must be greater than 0");
 
   const account = await getOwnedAccount(accountId, userId);
-  const price = getPrice(symbol);
+  const price = await priceFor(symbol);
   const cost = money(price * quantity);
 
   if (cost > account.cashBalance + 1e-9) {
@@ -95,8 +111,7 @@ export async function executeBuy({ accountId, userId, symbol, quantity }: TradeI
 }
 
 export async function executeSell({ accountId, userId, symbol, quantity }: TradeInput) {
-  symbol = symbol.toUpperCase();
-  if (!isValidSymbol(symbol)) throw new TradeError(`Unknown symbol: ${symbol}`);
+  symbol = normalizeSymbol(symbol);
   if (!(quantity > 0)) throw new TradeError("Quantity must be greater than 0");
 
   const account = await getOwnedAccount(accountId, userId);
@@ -110,7 +125,7 @@ export async function executeSell({ accountId, userId, symbol, quantity }: Trade
     );
   }
 
-  const price = getPrice(symbol);
+  const price = await priceFor(symbol);
   const proceeds = money(price * quantity);
 
   return prisma.$transaction(async (tx) => {

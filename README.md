@@ -1,13 +1,13 @@
 # Wealthsimple Clone (Simulated)
 
-A full-stack investing app modeled on Wealthsimple, using **simulated money and simulated market prices**. Create an account, add mock funds, buy and sell stocks/ETFs/crypto, and track your portfolio's value and performance over time. No real money and no real market feed are involved.
+A full-stack investing app modeled on Wealthsimple, using **simulated money and real market prices**. Create an account, add mock funds, search for any real stock/ETF/crypto, buy and sell, and track your portfolio's value and performance over time. Trades and balances are simulated — no real money is ever involved.
 
 ## Features
 
 - **Auth** — register / login with JWT + bcrypt password hashing.
 - **Accounts** — multiple account types like Wealthsimple (Personal, TFSA, RRSP, Crypto), each with its own cash balance and positions.
 - **Move money** — mock deposits and withdrawals with a full cash ledger.
-- **Market** — 25 simulated symbols across stocks, ETFs, and crypto. Quotes update every few seconds; deterministic price history for 1W–1Y ranges.
+- **Market** — dynamic, search-only: look up any real stock, ETF, or crypto by name or ticker. Quotes and 1W–1Y history come from live data providers.
 - **Trading** — market buy/sell orders (fractional shares supported), with fund/share validation, average-cost tracking, and position updates.
 - **Portfolio** — holdings with live market value, cost basis, unrealized P/L (dollar + %), and net worth across all accounts.
 - **Watchlist** — track symbols you're interested in.
@@ -66,38 +66,40 @@ The demo account comes pre-funded with two accounts (Personal + TFSA) and a hand
 
 ## Market data
 
-The app can use **real market data** or a built-in **simulator** — it decides per symbol at runtime, and always falls back to the simulator so it never breaks or blocks on the network.
+The app is **dynamic and search-only** — there is no fixed list of symbols. You can search for any real stock, ETF, or crypto, and prices come from live data providers. Symbol metadata (name, asset type) is cached in the database the first time a symbol is seen.
 
-Two optional free data sources:
+Two free data sources:
 
 | Source | Free key | Provides |
 | --- | --- | --- |
-| [Twelve Data](https://twelvedata.com/register) | 8 req/min, 800/day | Real quotes **and** real historical charts for stocks, ETFs, **and crypto** |
-| [Finnhub](https://finnhub.io/register) | 60 req/min | Faster real-time stock/ETF quotes (optional upgrade) |
+| [Finnhub](https://finnhub.io/register) | 60 req/min | Symbol search + real-time stock/ETF quotes |
+| [Twelve Data](https://twelvedata.com/register) | 8 req/min, 800/day | Crypto quotes + historical charts (all asset types) |
 
-Recommended: **just set a Twelve Data key** — it covers real quotes and real historical charts for everything, including crypto. Add Finnhub too if you want higher-frequency stock quote refresh.
+Both keys are recommended: Finnhub powers search and stock/ETF quotes; Twelve Data covers crypto and the historical chart data.
 
 Behavior:
-- **Quotes:** Finnhub for stocks/ETFs when configured; otherwise Twelve Data; crypto always via Twelve Data. Falls back to the simulator if unset, rate-limited, or on error.
-- **Historical charts:** real daily candles from Twelve Data (cached ~1h). Falls back to the simulated series (scaled to the real live price) when unavailable.
-- Each quote reports its `source` (`"real"` or `"simulated"`), and the asset page shows a **● Live** or **◦ Simulated** badge.
+- **Quotes:** stocks/ETFs via Finnhub, crypto via Twelve Data. Resolved on demand and briefly cached (~15s).
+- **Warm cache:** a background loop keeps quotes fresh **only for symbols on users' watchlists** — the set to keep warm is read from the database each cycle. Everything else is priced on demand.
+- **Historical charts:** real daily candles from Twelve Data, cached ~1h. If history is unavailable (e.g. daily quota reached), the chart falls back to showing the current price point.
+- If a symbol can't be resolved to a real price, the app returns a clear error rather than fabricating data.
 
 ### Enable real data
 
-1. Create a free account at https://twelvedata.com/register and copy your API key.
-2. Put it in `backend/.env`:
+1. Create free accounts at https://finnhub.io/register and https://twelvedata.com/register and copy your API keys.
+2. Put them in `backend/.env`:
    ```
-   TWELVE_DATA_API_KEY="your_key_here"
-   # optional, for faster stock quotes:
    FINNHUB_API_KEY="your_finnhub_key_here"
+   TWELVE_DATA_API_KEY="your_twelve_data_key_here"
    ```
-3. Restart the backend. On startup you'll see `[market] Real data enabled via …`.
+3. Restart the backend. On startup you'll see `[market] Dynamic search-only mode. Real data via …`.
 
-How it works: a background loop refreshes quotes into an in-memory cache (`QUOTE_REFRESH_MS` for Finnhub stocks, `CRYPTO_REFRESH_MS` for Twelve Data), staggering requests to stay under free-tier limits. API reads are served synchronously from that cache. Historical series are fetched from Twelve Data on demand and cached (`HISTORY_CACHE_MS`, default 1h) so chart browsing doesn't burn the daily quota.
+How it works: the quote path is async. Watchlist symbols are pre-warmed into an in-memory cache by a background loop (`QUOTE_REFRESH_MS`), staggering requests to respect free-tier limits. Any other symbol (a search hit, a trade ticket, a held position) is fetched on demand and cached briefly. Historical series are cached (`HISTORY_CACHE_MS`, default 1h) so chart browsing doesn't burn the daily quota.
+
+> Note on the free tiers: Twelve Data's free plan is 800 requests/day. If you exhaust it, crypto quotes and historical charts will be temporarily unavailable (they resume when the quota resets); stock quotes via Finnhub are unaffected.
 
 ## How trading works
 
-- Trades execute immediately at the current price (real or simulated). Buys reduce cash and update the position's average cost; sells increase cash and reduce quantity. Everything is recorded in the transaction and order ledgers.
+- Trades execute immediately at the current real price. Buys reduce cash and update the position's average cost; sells increase cash and reduce quantity. Everything is recorded in the transaction and order ledgers.
 
 ## Useful scripts
 

@@ -1,5 +1,5 @@
 import { config } from "../lib/config";
-import { toTwelveDataSymbol } from "../data/symbols";
+import { toTwelveDataSymbol } from "./symbols";
 
 /**
  * Client for Twelve Data (free tier). Used for:
