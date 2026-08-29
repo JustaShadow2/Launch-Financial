@@ -7,6 +7,13 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Neon Postgres connection string (pooled). Set in the Render dashboard.
+      # Real user accounts persist here across deploys.
+      - key: DATABASE_URL
+        sync: false
+      # Optional: Neon direct (non-pooled) connection string for migrations.
+      - key: DIRECT_URL
+        sync: false
       # JWT signing secret. Render generates a strong random value.
       - key: JWT_SECRET
         generateValue: true

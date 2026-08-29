@@ -3,8 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Optional direct (non-pooled) connection used for migrations. On Neon, set
+  // this to the direct connection string; falls back to DATABASE_URL if unset.
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -45,7 +48,7 @@ model LessonProgress {
   @@index([userId])
 }
 
-// A Wealthsimple-style account (e.g. Personal / TFSA / RRSP). Each holds cash + positions.
+// An investing account (e.g. Personal / TFSA / RRSP). Each holds cash + positions.
 model Account {
   id           String    @id @default(cuid())
   userId       String

@@ -1,4 +1,4 @@
-# Wealthsimple Clone — single-image production build.
+# Launch Financial — single-image production build.
 # Builds the React frontend and the Node/Express + Prisma backend, then runs
 # the backend which also serves the built frontend as static files.
 
@@ -27,9 +27,9 @@ WORKDIR /app/backend
 RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
-# SQLite DB lives on the container's writable filesystem. On Render this resets
-# on redeploy; the start script re-pushes the schema and reseeds the demo data.
-ENV DATABASE_URL="file:./prod.db"
+# DATABASE_URL (Neon Postgres) is provided at runtime via the Render env var.
+# Data persists in Postgres across deploys; the start script runs
+# `prisma migrate deploy` (no data loss) and an idempotent demo seed.
 # Tell the backend to serve the built frontend.
 ENV SERVE_STATIC_DIR=/app/frontend/dist
 
@@ -45,8 +45,8 @@ COPY backend/tsconfig.json ./tsconfig.json
 # Built frontend served by the backend.
 COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
 
-# Startup: sync the schema, seed demo data (idempotent — it resets the demo
-# user), then launch the server. Render provides $PORT.
+# Startup: apply migrations (migrate deploy), ensure the demo login exists
+# (idempotent, non-destructive), then launch the server. Render provides $PORT.
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 

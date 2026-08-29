@@ -2,20 +2,22 @@ import { prisma } from "./lib/prisma";
 import { hashPassword } from "./lib/auth";
 
 /**
- * Seeds a single demo login so the app is instantly usable without registering.
+ * Ensures a demo login exists so the app is instantly usable without
+ * registering. This seed is IDEMPOTENT and NON-DESTRUCTIVE: it never deletes
+ * users or data. It only creates the demo account if it's missing, so it's
+ * safe to run on every deploy alongside real, persisted user accounts.
  *
- * The account starts completely blank: $0 cash, no positions, no watchlist,
- * no learning progress. Users add whatever funds they want from the "Move
- * money" page, and every deposit is tracked as a transaction.
+ * The demo account starts blank ($0 cash, no positions). Real users register
+ * normally and their data persists in Postgres across deploys.
  */
 async function main() {
   const email = "demo@launchfinancial.app";
   const password = "password123";
 
-  // Clean slate for the demo user.
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    await prisma.user.delete({ where: { id: existing.id } });
+    console.log(`Demo user already exists (${email}) — leaving it and all data untouched.`);
+    return;
   }
 
   const passwordHash = await hashPassword(password);
@@ -32,7 +34,7 @@ async function main() {
     },
   });
 
-  console.log("Seeded demo user (blank $0 account):");
+  console.log("Created demo user (blank $0 account):");
   console.log(`  email:    ${email}`);
   console.log(`  password: ${password}`);
 }
