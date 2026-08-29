@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { useAccounts } from "../hooks/useAccounts";
 import { formatMoney, formatPrice, formatQty } from "../lib/format";
@@ -51,6 +52,22 @@ export function TradeTicket({ symbol, price }: Props) {
   }
 
   if (loading) return <div className="card">Loading accounts…</div>;
+
+  // No accounts yet — guide the user to open one instead of a broken form.
+  if (accounts.length === 0) {
+    return (
+      <div className="card" style={{ height: "fit-content", textAlign: "center" }}>
+        <div style={{ fontSize: 32 }}>💼</div>
+        <h3 style={{ margin: "8px 0 4px" }}>Open an account to trade</h3>
+        <p className="muted" style={{ fontSize: 14 }}>
+          You need an investment account before you can buy {symbol}.
+        </p>
+        <Link to="/funding" className="btn btn-block mt-8">
+          Open an account
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="card" style={{ height: "fit-content" }}>

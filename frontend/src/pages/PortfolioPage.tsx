@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAccounts } from "../hooks/useAccounts";
 import { formatMoney, formatPercent, formatPrice, formatQty, gainClass } from "../lib/format";
 
@@ -16,7 +16,16 @@ export default function PortfolioPage() {
     return (
       <div>
         <h1 className="page-title">Portfolio</h1>
-        <div className="empty">No accounts yet.</div>
+        <div className="card empty-state">
+          <div style={{ fontSize: 40 }}>📈</div>
+          <h3 style={{ margin: "8px 0 4px" }}>No accounts yet</h3>
+          <p className="muted" style={{ maxWidth: 420, margin: "0 auto 12px" }}>
+            Open an account and add money to start building your portfolio.
+          </p>
+          <Link to="/funding" className="btn">
+            Open an account
+          </Link>
+        </div>
       </div>
     );
   }

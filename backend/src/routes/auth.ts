@@ -63,14 +63,14 @@ authRouter.post(
 
     const passwordHash = await hashPassword(password);
     try {
+      // New users start with NO accounts — they open their first account
+      // themselves from the Move Money page.
       const user = await prisma.user.create({
         data: {
           email,
           passwordHash,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
-          // Every new user gets a default Personal account on signup.
-          accounts: { create: [{ type: "PERSONAL", name: "Personal", cashBalance: 0 }] },
         },
       });
       const token = signToken({ userId: user.id, email: user.email });

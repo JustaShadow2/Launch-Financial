@@ -21,20 +21,18 @@ async function main() {
   }
 
   const passwordHash = await hashPassword(password);
+  // Same as a brand-new signup: no accounts yet. The user opens their first
+  // account from the Move Money page.
   await prisma.user.create({
     data: {
       email,
       passwordHash,
       firstName: "Demo",
       lastName: "Investor",
-      // A single, empty Personal account starting at $0 — same as a brand-new signup.
-      accounts: {
-        create: [{ type: "PERSONAL", name: "Personal", cashBalance: 0 }],
-      },
     },
   });
 
-  console.log("Created demo user (blank $0 account):");
+  console.log("Created demo user (no accounts yet):");
   console.log(`  email:    ${email}`);
   console.log(`  password: ${password}`);
 }

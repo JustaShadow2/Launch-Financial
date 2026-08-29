@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { useAccounts } from "../hooks/useAccounts";
 import { Transaction } from "../api/types";
@@ -36,6 +37,25 @@ export default function ActivityPage() {
   }
 
   if (accLoading) return <div className="loading">Loading…</div>;
+
+  if (accounts.length === 0) {
+    return (
+      <div>
+        <h1 className="page-title">Activity</h1>
+        <p className="page-sub">Deposits, withdrawals, and trades.</p>
+        <div className="card empty-state">
+          <div style={{ fontSize: 40 }}>📄</div>
+          <h3 style={{ margin: "8px 0 4px" }}>No activity yet</h3>
+          <p className="muted" style={{ maxWidth: 420, margin: "0 auto 12px" }}>
+            Open an account and add money to start seeing your deposits and trades here.
+          </p>
+          <Link to="/funding" className="btn">
+            Open an account
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

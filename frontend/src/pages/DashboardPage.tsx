@@ -108,43 +108,59 @@ export default function DashboardPage() {
 
       <div className="row spread mt-24" style={{ marginBottom: 12 }}>
         <h2 style={{ margin: 0, fontSize: 20 }}>Your accounts</h2>
-        <Link to="/funding" className="btn btn-sm">
-          Add money
-        </Link>
+        {accounts.length > 0 && (
+          <Link to="/funding" className="btn btn-sm">
+            Add money
+          </Link>
+        )}
       </div>
 
-      <div className="card" style={{ padding: 0 }}>
-        <table>
-          <thead>
-            <tr>
-              <th>Account</th>
-              <th>Cash</th>
-              <th>Investments</th>
-              <th>Total</th>
-              <th>All-time P/L</th>
-            </tr>
-          </thead>
-          <tbody>
-            {accounts.map((a) => (
-              <tr key={a.accountId}>
-                <td>
-                  <Link to="/portfolio" style={{ fontWeight: 600 }}>
-                    {a.name}
-                  </Link>{" "}
-                  <span className="pill">{a.type}</span>
-                </td>
-                <td>{formatMoney(a.cashBalance)}</td>
-                <td>{formatMoney(a.investmentsValue)}</td>
-                <td style={{ fontWeight: 600 }}>{formatMoney(a.totalValue)}</td>
-                <td className={gainClass(a.totalUnrealizedPL)}>
-                  {formatMoney(a.totalUnrealizedPL, { sign: true })} (
-                  {formatPercent(a.totalUnrealizedPLPercent)})
-                </td>
+      {accounts.length === 0 ? (
+        <div className="card empty-state">
+          <div style={{ fontSize: 40 }}>🚀</div>
+          <h3 style={{ margin: "8px 0 4px" }}>Get started</h3>
+          <p className="muted" style={{ maxWidth: 440, margin: "0 auto 12px" }}>
+            You don't have any accounts yet. Open your first account, add some mock money, and start
+            investing.
+          </p>
+          <Link to="/funding" className="btn">
+            Open an account
+          </Link>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 0 }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th>Cash</th>
+                <th>Investments</th>
+                <th>Total</th>
+                <th>All-time P/L</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {accounts.map((a) => (
+                <tr key={a.accountId}>
+                  <td>
+                    <Link to="/portfolio" style={{ fontWeight: 600 }}>
+                      {a.name}
+                    </Link>{" "}
+                    <span className="pill">{a.type}</span>
+                  </td>
+                  <td>{formatMoney(a.cashBalance)}</td>
+                  <td>{formatMoney(a.investmentsValue)}</td>
+                  <td style={{ fontWeight: 600 }}>{formatMoney(a.totalValue)}</td>
+                  <td className={gainClass(a.totalUnrealizedPL)}>
+                    {formatMoney(a.totalUnrealizedPL, { sign: true })} (
+                    {formatPercent(a.totalUnrealizedPLPercent)})
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
