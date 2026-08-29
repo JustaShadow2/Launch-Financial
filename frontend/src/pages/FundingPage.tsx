@@ -127,7 +127,7 @@ export default function FundingPage() {
         <div className="card" style={{ height: "fit-content" }}>
           <h3 style={{ marginTop: 0 }}>Open a new account</h3>
           <p className="muted" style={{ fontSize: 14 }}>
-            Like Wealthsimple, you can hold multiple account types.
+            With Launch Financial, you can hold multiple account types.
           </p>
           <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
             {NEW_ACCOUNT_TYPES.map((t) => {

@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const [email, setEmail] = useState("demo@wealthsimple.dev");
+  const [email, setEmail] = useState("demo@launchfinancial.app");
   const [password, setPassword] = useState("password123");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,7 +25,7 @@ export default function LoginPage() {
   return (
     <div className="auth-wrap">
       <div className="auth-card">
-        <div className="auth-brand">Wealthsimple</div>
+        <div className="auth-brand">Launch Financial</div>
         <div className="auth-sub">Log in to your simulated investing account</div>
         {error && <div className="error-banner">{error}</div>}
         <form onSubmit={onSubmit}>
@@ -50,7 +50,7 @@ export default function LoginPage() {
           New here? <Link to="/register">Create an account</Link>
         </div>
         <div className="demo-hint">
-          Demo login is prefilled: <code>demo@wealthsimple.dev</code> / <code>password123</code>
+          Demo login is prefilled: <code>demo@launchfinancial.app</code> / <code>password123</code>
           <br />
           Real market prices, simulated money. No real funds involved.
         </div>

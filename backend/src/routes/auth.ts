@@ -39,7 +39,7 @@ authRouter.post(
         passwordHash,
         firstName,
         lastName,
-        // Every new user gets a default Personal account, just like signing up on Wealthsimple.
+        // Every new user gets a default Personal account on signup.
         accounts: {
           create: [{ type: "PERSONAL", name: "Personal", cashBalance: 0 }],
         },

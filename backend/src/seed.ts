@@ -9,7 +9,7 @@ import { hashPassword } from "./lib/auth";
  * money" page, and every deposit is tracked as a transaction.
  */
 async function main() {
-  const email = "demo@wealthsimple.dev";
+  const email = "demo@launchfinancial.app";
   const password = "password123";
 
   // Clean slate for the demo user.

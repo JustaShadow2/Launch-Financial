@@ -40,7 +40,7 @@ async function getOwnedAccount(accountId: string, userId: string) {
   return account;
 }
 
-// Round money to cents; quantities can be fractional (like Wealthsimple).
+// Round money to cents; quantities can be fractional.
 function money(n: number): number {
   return Math.round(n * 100) / 100;
 }

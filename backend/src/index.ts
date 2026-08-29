@@ -17,7 +17,7 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", service: "wealthsimple-clone-api", time: new Date().toISOString() });
+  res.json({ status: "ok", service: "launch-financial-api", time: new Date().toISOString() });
 });
 
 app.use("/api/auth", authRouter);

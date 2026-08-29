@@ -27,7 +27,7 @@ export default function RegisterPage() {
   return (
     <div className="auth-wrap">
       <div className="auth-card">
-        <div className="auth-brand">Wealthsimple</div>
+        <div className="auth-brand">Launch Financial</div>
         <div className="auth-sub">Create your simulated investing account</div>
         {error && <div className="error-banner">{error}</div>}
         <form onSubmit={onSubmit}>

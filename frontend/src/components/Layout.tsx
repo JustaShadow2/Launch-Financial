@@ -19,7 +19,7 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand">Wealthsimple</div>
+        <div className="brand">Launch Financial</div>
         {links.map((l) => (
           <NavLink
             key={l.to}
