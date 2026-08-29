@@ -3,6 +3,8 @@ import { useAuth } from "./context/AuthContext";
 import { Layout } from "./components/Layout";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ProfilePage from "./pages/ProfilePage";
 import DashboardPage from "./pages/DashboardPage";
 import PortfolioPage from "./pages/PortfolioPage";
 import MarketPage from "./pages/MarketPage";
@@ -33,7 +35,12 @@ export default function App() {
         path="/register"
         element={loading ? <div className="loading">Loading…</div> : user ? <Navigate to="/" replace /> : <RegisterPage />}
       />
+      <Route
+        path="/forgot-password"
+        element={loading ? <div className="loading">Loading…</div> : user ? <Navigate to="/" replace /> : <ForgotPasswordPage />}
+      />
       <Route path="/" element={<Protected><DashboardPage /></Protected>} />
+      <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
       <Route path="/portfolio" element={<Protected><PortfolioPage /></Protected>} />
       <Route path="/market" element={<Protected><MarketPage /></Protected>} />
       <Route path="/asset/:symbol" element={<Protected><AssetPage /></Protected>} />

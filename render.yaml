@@ -23,3 +23,9 @@ services:
         sync: false
       - key: TWELVE_DATA_API_KEY
         sync: false
+      # Email for password-reset codes (Resend). If unset, codes are logged to
+      # the service logs instead of emailed.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false

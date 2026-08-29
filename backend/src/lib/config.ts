@@ -16,4 +16,10 @@ export const config = {
   // In production the backend also serves the built frontend as static files.
   // Set to the absolute path of frontend/dist. Empty in dev (Vite serves it).
   serveStaticDir: process.env.SERVE_STATIC_DIR || "",
+  // Email (password-reset OTP) via Resend. If RESEND_API_KEY is unset, OTP
+  // codes are logged to the server console instead (dev fallback).
+  resendApiKey: process.env.RESEND_API_KEY || "",
+  emailFrom: process.env.EMAIL_FROM || "Launch Financial <onboarding@resend.dev>",
+  // Public app name used in email copy.
+  appName: "Launch Financial",
 };

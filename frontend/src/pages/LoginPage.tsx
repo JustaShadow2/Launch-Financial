@@ -4,8 +4,8 @@ import { useAuth } from "../context/AuthContext";
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const [email, setEmail] = useState("demo@launchfinancial.app");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -31,14 +31,28 @@ export default function LoginPage() {
         <form onSubmit={onSubmit}>
           <div className="field">
             <label>Email</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoComplete="email"
+              required
+            />
           </div>
           <div className="field">
-            <label>Password</label>
+            <div className="row spread" style={{ marginBottom: 6 }}>
+              <label style={{ margin: 0 }}>Password</label>
+              <Link to="/forgot-password" style={{ fontSize: 13, color: "var(--accent)" }}>
+                Forgot password?
+              </Link>
+            </div>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="Your password"
+              autoComplete="current-password"
               required
             />
           </div>
@@ -50,8 +64,6 @@ export default function LoginPage() {
           New here? <Link to="/register">Create an account</Link>
         </div>
         <div className="demo-hint">
-          Demo login is prefilled: <code>demo@launchfinancial.app</code> / <code>password123</code>
-          <br />
           Real market prices, simulated money. No real funds involved.
         </div>
       </div>

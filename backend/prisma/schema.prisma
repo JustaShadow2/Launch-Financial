@@ -122,6 +122,21 @@ model WatchlistItem {
   @@index([userId])
 }
 
+// One-time password codes for the "forgot password" flow. The code is stored
+// hashed (never in plaintext). A row is consumed on successful reset and
+// expires after a short window; attempts are capped to prevent brute force.
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String   // lowercased email the code was issued for
+  codeHash  String   // bcrypt hash of the 6-digit OTP
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
 // Cached metadata for any symbol we've resolved via a data provider. Because
 // symbols are now searched dynamically (no static universe), this table is the
 // source of truth for a symbol's display name and asset type at render time

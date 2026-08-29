@@ -4,7 +4,7 @@ A full-stack investing app modeled on Wealthsimple, using **simulated money and 
 
 ## Features
 
-- **Auth** — register / login with JWT + bcrypt password hashing.
+- **Auth & profile** — register / login with JWT + bcrypt, persistent accounts in Postgres, duplicate-email protection, a Profile page (update name, change email, change password, delete account), and forgot-password via emailed 6-digit OTP. Data persists across deploys.
 - **Accounts** — multiple account types like Wealthsimple (Personal, TFSA, RRSP, Crypto), each with its own cash balance and positions.
 - **Move money** — mock deposits and withdrawals with a full cash ledger.
 - **Market** — dynamic, search-only: look up any real stock, ETF, or crypto by name or ticker. Quotes and 1W–1Y history come from live data providers.

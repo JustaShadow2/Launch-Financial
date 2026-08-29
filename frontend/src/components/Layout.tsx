@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const links = [
@@ -31,14 +31,18 @@ export function Layout({ children }: { children: ReactNode }) {
           </NavLink>
         ))}
         <div className="sidebar-footer">
-          <div style={{ padding: "8px 12px", fontSize: 14 }}>
-            <div style={{ fontWeight: 600 }}>
+          <Link
+            to="/profile"
+            className="nav-link"
+            style={{ display: "block", padding: "8px 12px" }}
+          >
+            <div style={{ fontWeight: 600, fontSize: 14 }}>
               {user?.firstName} {user?.lastName}
             </div>
             <div className="muted" style={{ fontSize: 12 }}>
-              {user?.email}
+              View profile
             </div>
-          </div>
+          </Link>
           <button
             className="nav-link"
             style={{ background: "transparent", border: "none", textAlign: "left", width: "100%" }}
