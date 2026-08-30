@@ -4,27 +4,83 @@ import { api } from "../api/client";
 import { Quote, SymbolInfo } from "../api/types";
 import { formatPercent, formatPrice, gainClass } from "../lib/format";
 
+interface PopularGroup {
+  category: string; // STOCK | ETF | CRYPTO
+  quotes: Quote[];
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  STOCK: "Popular stocks",
+  ETF: "Popular ETFs",
+  CRYPTO: "Popular crypto",
+};
+
+function QuoteTable({
+  quotes,
+  onOpen,
+}: {
+  quotes: Quote[];
+  onOpen: (symbol: string) => void;
+}) {
+  return (
+    <div className="card" style={{ padding: 0 }}>
+      <table>
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Price</th>
+            <th>Today</th>
+          </tr>
+        </thead>
+        <tbody>
+          {quotes.map((q) => (
+            <tr key={q.symbol} className="clickable" onClick={() => onOpen(q.symbol)}>
+              <td>
+                <div style={{ fontWeight: 600 }}>{q.symbol}</div>
+                <div className="muted" style={{ fontSize: 13 }}>
+                  {q.name}
+                </div>
+              </td>
+              <td>{formatPrice(q.price)}</td>
+              <td className={gainClass(q.change)}>
+                {formatPrice(q.change)} ({formatPercent(q.changePercent)})
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function MarketPage() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SymbolInfo[]>([]);
   const [searching, setSearching] = useState(false);
   const [watchQuotes, setWatchQuotes] = useState<Quote[]>([]);
-  const [loadingWatch, setLoadingWatch] = useState(true);
+  const [popular, setPopular] = useState<PopularGroup[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Default view: the user's watchlist quotes, refreshed periodically.
+  // Default view: watchlist + popular sections, refreshed periodically.
   useEffect(() => {
     let active = true;
     function load() {
-      api
-        .get<{ quotes: Quote[] }>("/market/quotes")
-        .then((r) => active && setWatchQuotes(r.quotes))
+      Promise.all([
+        api.get<{ quotes: Quote[] }>("/market/quotes"),
+        api.get<{ groups: PopularGroup[] }>("/market/popular"),
+      ])
+        .then(([w, p]) => {
+          if (!active) return;
+          setWatchQuotes(w.quotes);
+          setPopular(p.groups);
+        })
         .catch(() => {})
-        .finally(() => active && setLoadingWatch(false));
+        .finally(() => active && setLoading(false));
     }
     load();
-    const id = setInterval(load, 8000);
+    const id = setInterval(load, 10000);
     return () => {
       active = false;
       clearInterval(id);
@@ -53,6 +109,7 @@ export default function MarketPage() {
     };
   }, [query]);
 
+  const open = (symbol: string) => navigate(`/asset/${symbol}`);
   const showingSearch = query.trim().length > 0;
 
   return (
@@ -60,7 +117,7 @@ export default function MarketPage() {
       <h1 className="page-title">Market</h1>
       <p className="page-sub">Search any stock, ETF, or crypto by name or ticker.</p>
 
-      <div className="row" style={{ marginBottom: 16 }}>
+      <div className="row" style={{ marginBottom: 20 }}>
         <input
           placeholder="Search e.g. Apple, WMT, Bitcoin…"
           value={query}
@@ -87,11 +144,7 @@ export default function MarketPage() {
               </thead>
               <tbody>
                 {results.map((r) => (
-                  <tr
-                    key={r.symbol}
-                    className="clickable"
-                    onClick={() => navigate(`/asset/${r.symbol}`)}
-                  >
+                  <tr key={r.symbol} className="clickable" onClick={() => open(r.symbol)}>
                     <td style={{ fontWeight: 600 }}>{r.symbol}</td>
                     <td className="muted">{r.name}</td>
                     <td>
@@ -103,53 +156,39 @@ export default function MarketPage() {
             </table>
           )}
         </div>
+      ) : loading ? (
+        <div className="loading">Loading market…</div>
       ) : (
-        <>
-          <h2 style={{ fontSize: 18, margin: "8px 0 12px" }}>Your watchlist</h2>
-          {loadingWatch ? (
-            <div className="loading">Loading…</div>
-          ) : watchQuotes.length === 0 ? (
+        <div className="market-sections">
+          {/* Watchlist first, if the user has one */}
+          {watchQuotes.length > 0 && (
+            <section>
+              <h2 className="section-title">Your watchlist</h2>
+              <QuoteTable quotes={watchQuotes} onOpen={open} />
+            </section>
+          )}
+
+          {/* Popular sections per category */}
+          {popular.map(
+            (g) =>
+              g.quotes.length > 0 && (
+                <section key={g.category}>
+                  <h2 className="section-title">{CATEGORY_LABELS[g.category] || g.category}</h2>
+                  <QuoteTable quotes={g.quotes} onOpen={open} />
+                </section>
+              )
+          )}
+
+          {watchQuotes.length === 0 && popular.every((g) => g.quotes.length === 0) && (
             <div className="card empty">
               Search above to find symbols, then add them to your watchlist to track them here.
             </div>
-          ) : (
-            <div className="card" style={{ padding: 0 }}>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Symbol</th>
-                    <th>Type</th>
-                    <th>Price</th>
-                    <th>Today</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {watchQuotes.map((q) => (
-                    <tr
-                      key={q.symbol}
-                      className="clickable"
-                      onClick={() => navigate(`/asset/${q.symbol}`)}
-                    >
-                      <td>
-                        <div style={{ fontWeight: 600 }}>{q.symbol}</div>
-                        <div className="muted" style={{ fontSize: 13 }}>
-                          {q.name}
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`pill ${q.type.toLowerCase()}`}>{q.type}</span>
-                      </td>
-                      <td>{formatPrice(q.price)}</td>
-                      <td className={gainClass(q.change)}>
-                        {formatPrice(q.change)} ({formatPercent(q.changePercent)})
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
           )}
-        </>
+
+          <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+            "Popular" is a curated selection of widely held names, not a live most-active ranking.
+          </p>
+        </div>
       )}
     </div>
   );

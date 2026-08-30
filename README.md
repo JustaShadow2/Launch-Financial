@@ -6,15 +6,15 @@ A full-stack investing app using **simulated money and real market prices**. Sig
 
 ## Features
 
-- **Auth & profile** — register / login with JWT + bcrypt. Persistent accounts in Postgres (data survives deploys), case-insensitive duplicate-email protection, and forgot-password via an emailed 6-digit code. A Profile page lets you update your name, change your email, change your password, and delete your account.
+- **Auth & profile** — register / login with JWT + bcrypt. Persistent accounts in Postgres (data survives deploys), case-insensitive duplicate-email protection, signup email validation (rejects malformed and disposable addresses, suggests common typo fixes), and forgot-password via an emailed 6-digit code. A Profile page lets you update your name, change your email, change your password, and delete your account.
 - **Accounts** — open one or more account types yourself (Personal, TFSA, RRSP, Crypto), each with its own cash balance and positions. New users start with **no accounts** and open their first from the Move Money page.
 - **Move money** — mock deposits and withdrawals with a full cash ledger and withdrawal-balance validation.
-- **Market** — dynamic, search-only: look up any real stock, ETF, or crypto by name or ticker. Quotes and 1W–1Y history come from live data providers.
+- **Market** — dynamic, search-only: look up any real stock, ETF, or crypto by name or ticker. The default view also shows your watchlist and curated "Popular" stock / ETF / crypto sections with live quotes. Quotes and 1W–1Y history come from live data providers.
 - **Trading** — market buy/sell orders (fractional shares supported), with fund/share validation, average-cost tracking, and position updates.
 - **Portfolio** — holdings with live market value, cost basis, unrealized P/L (dollar + %), and net worth across all accounts.
 - **Watchlist** — track symbols you're interested in; watchlisted symbols are kept quote-warm in the background.
 - **Activity** — full history of deposits, withdrawals, and trades per account.
-- **Learn** — a Duolingo-style investing & financial-literacy academy: 13 courses / 51 lessons, each with teaching slides + a quiz, a "one lesson a day" plan, sequential unlocking, XP, and daily streaks. Progress is tracked per user.
+- **Learn** — a Duolingo-style investing & financial-literacy academy: 20 courses / 76 lessons spanning the basics through options, margin & short selling, fundamentals, macro, taxes, and behavioral finance. Each lesson has teaching slides + a quiz, with a "one lesson a day" plan, sequential unlocking, XP, and daily streaks. Progress is tracked per user.
 
 ## Tech stack
 

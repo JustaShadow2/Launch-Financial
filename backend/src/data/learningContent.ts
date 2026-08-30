@@ -2891,6 +2891,1260 @@ export const COURSES: Course[] = [
       },
     ],
   },
+
+  // ────────────────────────────────────────────────────────────────────────
+  // 14. MARKET MECHANICS
+  // ────────────────────────────────────────────────────────────────────────
+  {
+    id: "market-mechanics",
+    title: "Market Mechanics",
+    description: "How the plumbing works: settlement, trading hours, splits, buybacks, DRIPs, and IPOs.",
+    level: "Intermediate",
+    icon: "⚙️",
+    color: "#7cc6fe",
+    lessons: [
+      {
+        id: "mm-1",
+        title: "Settlement and T+1",
+        subtitle: "When a trade is really done",
+        minutes: 5,
+        xp: 30,
+        slides: [
+          {
+            title: "Execution vs. settlement",
+            body: [
+              "When your order fills, the trade is 'executed' — but ownership and cash officially change hands a bit later, at 'settlement'.",
+              "US stocks now settle one business day after the trade, known as T+1.",
+            ],
+            keyTakeaway: "Execution is instant; settlement (T+1 for US stocks) is when it's final.",
+          },
+          {
+            title: "Why it matters",
+            body: [
+              "Proceeds from a sale may be marked 'unsettled' briefly before you can withdraw them.",
+              "Trading with unsettled cash in a cash account can trigger 'good faith' or 'freeride' violations at real brokers.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "mm-1-q1",
+            type: "multiple_choice",
+            prompt: "US stocks currently settle on which cycle?",
+            options: ["T+0 (same day)", "T+1 (next business day)", "T+3", "T+7"],
+            answer: 1,
+            explanation: "US equities moved to a T+1 settlement cycle — one business day after the trade.",
+          },
+          {
+            id: "mm-1-q2",
+            type: "true_false",
+            prompt: "Execution and settlement happen at the exact same moment.",
+            options: ["True", "False"],
+            answer: 1,
+            explanation: "A trade executes immediately but settles later, when cash and shares officially transfer.",
+          },
+        ],
+      },
+      {
+        id: "mm-2",
+        title: "Trading hours",
+        subtitle: "Regular, pre-market, and after-hours",
+        minutes: 5,
+        xp: 30,
+        slides: [
+          {
+            title: "The regular session",
+            body: [
+              "US markets have a regular session (9:30am–4:00pm ET). Most volume happens here, so spreads are tightest.",
+              "Outside those hours, pre-market and after-hours sessions let some traders act on news early.",
+            ],
+            keyTakeaway: "Liquidity is highest during regular hours; extended hours are thinner.",
+          },
+          {
+            title: "Extended-hours risk",
+            body: [
+              "Extended-hours trading has fewer participants, wider spreads, and can be more volatile.",
+              "Prices there don't always carry over to the next regular open.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "mm-2-q1",
+            type: "multiple_choice",
+            prompt: "Compared to regular hours, extended-hours trading usually has:",
+            options: [
+              "Tighter spreads and more liquidity",
+              "Wider spreads and less liquidity",
+              "No risk",
+              "Guaranteed better prices",
+            ],
+            answer: 1,
+            explanation: "Fewer participants mean wider spreads and thinner, more volatile trading.",
+          },
+          {
+            id: "mm-2-q2",
+            type: "true_false",
+            prompt: "Most trading volume occurs during the regular session.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "The regular session sees the bulk of volume and the tightest spreads.",
+          },
+        ],
+      },
+      {
+        id: "mm-3",
+        title: "Stock splits",
+        subtitle: "Same pie, more slices",
+        minutes: 4,
+        xp: 30,
+        slides: [
+          {
+            title: "What a split does",
+            body: [
+              "In a stock split, a company increases its share count and lowers the price proportionally. A 2-for-1 split doubles shares and halves the price.",
+              "Your total value doesn't change — you just hold more shares at a lower price each.",
+            ],
+            keyTakeaway: "A split changes the share count and price, not the value you hold.",
+          },
+          {
+            title: "Reverse splits",
+            body: [
+              "A reverse split does the opposite: fewer shares at a higher price (e.g. 1-for-10).",
+              "Companies sometimes use these to lift a low share price, which can be a caution sign worth investigating.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "mm-3-q1",
+            type: "multiple_choice",
+            prompt: "After a 2-for-1 stock split, the value of your position:",
+            options: [
+              "Doubles",
+              "Halves",
+              "Stays about the same",
+              "Goes to zero",
+            ],
+            answer: 2,
+            explanation: "You get twice the shares at half the price — total value is roughly unchanged.",
+          },
+          {
+            id: "mm-3-q2",
+            type: "true_false",
+            prompt: "A reverse split reduces the number of shares and raises the price per share.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "Reverse splits consolidate shares into fewer, higher-priced ones.",
+          },
+        ],
+      },
+      {
+        id: "mm-4",
+        title: "Buybacks and dividends",
+        subtitle: "How companies return cash",
+        minutes: 5,
+        xp: 30,
+        slides: [
+          {
+            title: "Two ways to return cash",
+            body: [
+              "Companies return profits to shareholders two main ways: paying dividends, or buying back their own shares.",
+              "A buyback reduces share count, which can lift earnings per share and, often, the price per share.",
+            ],
+            keyTakeaway: "Dividends pay you directly; buybacks increase each remaining share's slice.",
+          },
+          {
+            title: "Trade-offs",
+            body: [
+              "Dividends give immediate cash but are taxable when received in a taxable account.",
+              "Buybacks are more tax-efficient for many investors but only help if shares are bought at reasonable prices.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "mm-4-q1",
+            type: "multiple_choice",
+            prompt: "A share buyback generally:",
+            options: [
+              "Increases the number of shares outstanding",
+              "Reduces shares outstanding, raising earnings per share",
+              "Pays you a dividend",
+              "Has no effect on the company",
+            ],
+            answer: 1,
+            explanation: "Buybacks shrink the share count, boosting per-share metrics.",
+          },
+          {
+            id: "mm-4-q2",
+            type: "true_false",
+            prompt: "Dividends and buybacks are both ways to return cash to shareholders.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "Both return capital; they just do it in different ways.",
+          },
+        ],
+      },
+      {
+        id: "mm-5",
+        title: "DRIPs",
+        subtitle: "Reinvesting dividends automatically",
+        minutes: 4,
+        xp: 30,
+        slides: [
+          {
+            title: "Dividend reinvestment",
+            body: [
+              "A DRIP (dividend reinvestment plan) automatically uses your dividends to buy more shares, often fractional ones.",
+              "This keeps your money compounding instead of sitting as idle cash.",
+            ],
+            keyTakeaway: "DRIPs turn dividends into more shares automatically, fueling compounding.",
+          },
+        ],
+        questions: [
+          {
+            id: "mm-5-q1",
+            type: "multiple_choice",
+            prompt: "A DRIP automatically:",
+            options: [
+              "Sells your shares",
+              "Reinvests dividends into more shares",
+              "Pays dividends as cash only",
+              "Avoids all taxes",
+            ],
+            answer: 1,
+            explanation: "DRIPs reinvest dividends to buy additional (often fractional) shares.",
+          },
+          {
+            id: "mm-5-q2",
+            type: "true_false",
+            prompt: "Reinvesting dividends can accelerate compounding.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "Reinvested dividends buy more shares that themselves earn returns.",
+          },
+        ],
+      },
+      {
+        id: "mm-6",
+        title: "IPOs",
+        subtitle: "How companies go public",
+        minutes: 5,
+        xp: 35,
+        slides: [
+          {
+            title: "Going public",
+            body: [
+              "An IPO (initial public offering) is when a private company first sells shares to the public and lists on an exchange.",
+              "It raises money for the company and lets early investors and employees sell some shares.",
+            ],
+            keyTakeaway: "An IPO is a company's debut on the public market.",
+          },
+          {
+            title: "Why IPOs are risky",
+            body: [
+              "New listings can be volatile: limited public history, hype, and lock-up periods that end and unleash selling.",
+              "Many investors wait a few quarters for the dust to settle before buying.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "mm-6-q1",
+            type: "multiple_choice",
+            prompt: "An IPO is:",
+            options: [
+              "A company buying back stock",
+              "A private company first selling shares to the public",
+              "A type of dividend",
+              "A bond offering",
+            ],
+            answer: 1,
+            explanation: "An IPO is a company's first public sale of shares.",
+          },
+          {
+            id: "mm-6-q2",
+            type: "true_false",
+            prompt: "Newly public stocks tend to be less volatile than established ones.",
+            options: ["True", "False"],
+            answer: 1,
+            explanation: "IPOs are often more volatile due to hype, thin history, and lock-up expirations.",
+          },
+        ],
+      },
+    ],
+  },
+
+  // ────────────────────────────────────────────────────────────────────────
+  // 15. MARGIN & SHORT SELLING
+  // ────────────────────────────────────────────────────────────────────────
+  {
+    id: "margin-and-shorting",
+    title: "Margin & Short Selling",
+    description: "Borrowing to invest and betting against stocks — the mechanics and the outsized risks.",
+    level: "Advanced",
+    icon: "⚖️",
+    color: "#ff8a80",
+    lessons: [
+      {
+        id: "ms-1",
+        title: "What is margin?",
+        subtitle: "Investing with borrowed money",
+        minutes: 6,
+        xp: 40,
+        slides: [
+          {
+            title: "Borrowing from your broker",
+            body: [
+              "A margin account lets you borrow money from your broker to buy more than your cash alone allows.",
+              "This is leverage: it magnifies both gains AND losses.",
+            ],
+            keyTakeaway: "Margin amplifies returns in both directions — bigger wins and bigger losses.",
+          },
+          {
+            title: "The cost of borrowing",
+            body: [
+              "You pay interest on borrowed funds, which eats into returns the longer you hold.",
+              "If your investments fall, you still owe the full borrowed amount plus interest.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "ms-1-q1",
+            type: "multiple_choice",
+            prompt: "Buying on margin means:",
+            options: [
+              "Using only your own cash",
+              "Borrowing from your broker to invest more",
+              "Avoiding all risk",
+              "Buying bonds",
+            ],
+            answer: 1,
+            explanation: "Margin is borrowing from the broker to increase buying power — leverage.",
+          },
+          {
+            id: "ms-1-q2",
+            type: "true_false",
+            prompt: "Leverage magnifies only your gains, never your losses.",
+            options: ["True", "False"],
+            answer: 1,
+            explanation: "Leverage cuts both ways — losses are magnified just as much as gains.",
+          },
+        ],
+      },
+      {
+        id: "ms-2",
+        title: "Margin calls",
+        subtitle: "When the broker wants its money",
+        minutes: 6,
+        xp: 45,
+        slides: [
+          {
+            title: "Maintenance requirements",
+            body: [
+              "Your account must keep a minimum equity level. If losses push you below it, you get a margin call.",
+              "A margin call demands you add cash or sell assets to restore the minimum.",
+            ],
+            keyTakeaway: "A margin call forces you to add funds or sell — often at the worst possible time.",
+          },
+          {
+            title: "Forced liquidation",
+            body: [
+              "If you don't meet a margin call, the broker can sell your positions for you, without asking, to cover the loan.",
+              "This can lock in losses at the bottom of a decline.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "ms-2-q1",
+            type: "multiple_choice",
+            prompt: "A margin call happens when:",
+            options: [
+              "Your account equity falls below the required minimum",
+              "You make a profit",
+              "You pay off a dividend",
+              "The market closes",
+            ],
+            answer: 0,
+            explanation: "Falling below the maintenance requirement triggers a margin call.",
+          },
+          {
+            id: "ms-2-q2",
+            type: "true_false",
+            prompt: "If you ignore a margin call, the broker can sell your positions without permission.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "Brokers can force-liquidate positions to cover the loan.",
+          },
+        ],
+      },
+      {
+        id: "ms-3",
+        title: "Short selling",
+        subtitle: "Profiting when prices fall",
+        minutes: 6,
+        xp: 45,
+        slides: [
+          {
+            title: "Selling what you don't own",
+            body: [
+              "To short a stock, you borrow shares and sell them, hoping to buy them back cheaper later and pocket the difference.",
+              "You profit if the price falls, and lose if it rises.",
+            ],
+            keyTakeaway: "Short selling is a bet that a price will fall.",
+          },
+          {
+            title: "Unlimited loss potential",
+            body: [
+              "A stock can only fall to zero (capped gain for a short), but it can rise infinitely — so a short's losses are theoretically unlimited.",
+              "A sharp rise can force shorts to buy back fast, fueling a 'short squeeze'.",
+            ],
+            keyTakeaway: "Shorting has capped gains but potentially unlimited losses.",
+          },
+        ],
+        questions: [
+          {
+            id: "ms-3-q1",
+            type: "multiple_choice",
+            prompt: "A short seller profits when the stock:",
+            options: ["Rises", "Falls", "Pays a dividend", "Splits"],
+            answer: 1,
+            explanation: "Shorts sell borrowed shares hoping to rebuy them lower.",
+          },
+          {
+            id: "ms-3-q2",
+            type: "multiple_choice",
+            prompt: "The maximum loss on a short position is:",
+            options: [
+              "Limited to your initial amount",
+              "Theoretically unlimited, since a stock can rise without limit",
+              "Always zero",
+              "The dividend",
+            ],
+            answer: 1,
+            explanation: "Because a price can rise infinitely, short losses are theoretically unlimited.",
+          },
+          {
+            id: "ms-3-q3",
+            type: "true_false",
+            prompt: "A 'short squeeze' is when a rising price forces short sellers to buy back, pushing the price higher.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "Forced buying to cover shorts can accelerate a price spike.",
+          },
+        ],
+      },
+      {
+        id: "ms-4",
+        title: "The Pattern Day Trader rule",
+        subtitle: "Rules for frequent traders",
+        minutes: 5,
+        xp: 40,
+        slides: [
+          {
+            title: "What counts as a day trade",
+            body: [
+              "A day trade is buying and selling the same security on the same day.",
+              "In the US, making 4+ day trades in 5 business days in a margin account flags you as a Pattern Day Trader (PDT).",
+            ],
+            keyTakeaway: "Frequent same-day round trips can trigger PDT status.",
+          },
+          {
+            title: "The $25,000 minimum",
+            body: [
+              "PDT accounts must maintain at least $25,000 in equity to keep day trading.",
+              "The rule exists because rapid trading is high-risk; it's a guardrail, not a strategy endorsement.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "ms-4-q1",
+            type: "multiple_choice",
+            prompt: "A pattern day trader in the US must maintain a minimum equity of:",
+            options: ["$2,000", "$10,000", "$25,000", "$100,000"],
+            answer: 2,
+            explanation: "The PDT rule requires at least $25,000 in the margin account.",
+          },
+          {
+            id: "ms-4-q2",
+            type: "true_false",
+            prompt: "A day trade means buying and selling the same security on the same day.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "That round trip within a single day is the definition of a day trade.",
+          },
+        ],
+      },
+    ],
+  },
+
+  // ────────────────────────────────────────────────────────────────────────
+  // 16. DEEPER FUNDAMENTALS
+  // ────────────────────────────────────────────────────────────────────────
+  {
+    id: "deeper-fundamentals",
+    title: "Deeper Fundamentals",
+    description: "Cash flow, returns on capital, and debt ratios — reading a company beyond the basics.",
+    level: "Advanced",
+    icon: "🔬",
+    color: "#b39ddb",
+    lessons: [
+      {
+        id: "df-1",
+        title: "The cash flow statement",
+        subtitle: "Following the actual cash",
+        minutes: 6,
+        xp: 40,
+        slides: [
+          {
+            title: "The third statement",
+            body: [
+              "Beyond the income statement and balance sheet, the cash flow statement tracks the real cash moving in and out.",
+              "It's split into operating, investing, and financing activities.",
+            ],
+            keyTakeaway: "Profit is an opinion; cash flow is a fact. This statement shows the cash.",
+          },
+          {
+            title: "Free cash flow",
+            body: [
+              "Free cash flow is operating cash flow minus capital spending — the cash a business truly generates and can return to owners.",
+              "Consistent, growing free cash flow is a hallmark of a healthy company.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "df-1-q1",
+            type: "multiple_choice",
+            prompt: "The cash flow statement is divided into:",
+            options: [
+              "Operating, investing, and financing activities",
+              "Assets, liabilities, and equity",
+              "Revenue and expenses",
+              "Bulls and bears",
+            ],
+            answer: 0,
+            explanation: "Those three sections make up the cash flow statement.",
+          },
+          {
+            id: "df-1-q2",
+            type: "multiple_choice",
+            prompt: "Free cash flow is roughly:",
+            options: [
+              "Revenue minus taxes",
+              "Operating cash flow minus capital expenditures",
+              "Net income plus dividends",
+              "Assets minus liabilities",
+            ],
+            answer: 1,
+            explanation: "FCF = operating cash flow − capital spending.",
+          },
+        ],
+      },
+      {
+        id: "df-2",
+        title: "Return on capital",
+        subtitle: "How well management invests",
+        minutes: 6,
+        xp: 40,
+        slides: [
+          {
+            title: "ROE and ROIC",
+            body: [
+              "Return on equity (ROE) measures profit generated per dollar of shareholder equity.",
+              "Return on invested capital (ROIC) measures profit per dollar of all capital (equity + debt) put to work.",
+            ],
+            keyTakeaway: "These ratios show how efficiently a company turns capital into profit.",
+          },
+          {
+            title: "Quality signal",
+            body: [
+              "Consistently high ROIC (above the company's cost of capital) suggests a durable, well-run business.",
+              "But watch for high ROE driven mostly by heavy debt rather than real efficiency.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "df-2-q1",
+            type: "multiple_choice",
+            prompt: "Return on equity (ROE) measures:",
+            options: [
+              "Profit per dollar of shareholder equity",
+              "Total revenue",
+              "The dividend yield",
+              "The share price",
+            ],
+            answer: 0,
+            explanation: "ROE is net income relative to shareholder equity.",
+          },
+          {
+            id: "df-2-q2",
+            type: "true_false",
+            prompt: "A high ROE driven mostly by heavy borrowing can be misleading.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "Leverage can inflate ROE without reflecting true operating efficiency.",
+          },
+        ],
+      },
+      {
+        id: "df-3",
+        title: "Debt and liquidity ratios",
+        subtitle: "Can the company pay its bills?",
+        minutes: 6,
+        xp: 40,
+        slides: [
+          {
+            title: "Leverage ratios",
+            body: [
+              "Debt-to-equity compares what a company owes to what shareholders own. Higher means more leverage and risk.",
+              "Interest coverage (earnings ÷ interest expense) shows how comfortably it can service its debt.",
+            ],
+            keyTakeaway: "Leverage ratios reveal how much risk a company's borrowing adds.",
+          },
+          {
+            title: "Liquidity ratios",
+            body: [
+              "The current ratio (current assets ÷ current liabilities) gauges short-term ability to pay bills.",
+              "Below 1 can signal a cash crunch; very high can signal idle, underused assets.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "df-3-q1",
+            type: "multiple_choice",
+            prompt: "A high debt-to-equity ratio generally indicates:",
+            options: ["Less risk", "More leverage and risk", "Higher dividends", "A stock split"],
+            answer: 1,
+            explanation: "More debt relative to equity means more financial leverage and risk.",
+          },
+          {
+            id: "df-3-q2",
+            type: "multiple_choice",
+            prompt: "Interest coverage tells you:",
+            options: [
+              "How comfortably a company can pay interest on its debt",
+              "The dividend per share",
+              "The P/E ratio",
+              "The market cap",
+            ],
+            answer: 0,
+            explanation: "It's earnings relative to interest expense — debt-servicing comfort.",
+          },
+          {
+            id: "df-3-q3",
+            type: "true_false",
+            prompt: "A current ratio below 1 can signal short-term liquidity trouble.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "It means current liabilities exceed current assets — a potential cash crunch.",
+          },
+        ],
+      },
+    ],
+  },
+
+  // ────────────────────────────────────────────────────────────────────────
+  // 17. MACRO & THE ECONOMY
+  // ────────────────────────────────────────────────────────────────────────
+  {
+    id: "macro-economy",
+    title: "Macro & the Economy",
+    description: "The big forces: interest rates, inflation, the business cycle, and recessions.",
+    level: "Intermediate",
+    icon: "🌐",
+    color: "#4db6ac",
+    lessons: [
+      {
+        id: "ma-1",
+        title: "Interest rates and the Fed",
+        subtitle: "The price of money",
+        minutes: 6,
+        xp: 35,
+        slides: [
+          {
+            title: "The central bank's lever",
+            body: [
+              "A central bank (in the US, the Federal Reserve) sets a key interest rate that ripples through the whole economy.",
+              "Raising rates cools borrowing and spending; cutting rates stimulates them.",
+            ],
+            keyTakeaway: "Interest rates are the economy's main throttle — they move nearly everything.",
+          },
+          {
+            title: "Why markets watch rates",
+            body: [
+              "Higher rates make borrowing costlier and make safe assets (like bonds) more attractive vs. stocks.",
+              "Growth stocks, valued on far-future profits, are especially sensitive to rate changes.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "ma-1-q1",
+            type: "multiple_choice",
+            prompt: "When a central bank raises interest rates, it generally aims to:",
+            options: [
+              "Speed up borrowing and spending",
+              "Cool down borrowing and spending",
+              "Pay dividends",
+              "Split stocks",
+            ],
+            answer: 1,
+            explanation: "Higher rates make borrowing costlier, slowing spending and inflation.",
+          },
+          {
+            id: "ma-1-q2",
+            type: "true_false",
+            prompt: "Rising rates tend to pressure high-growth stocks more than average.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "Growth stocks rely on far-future profits, which are discounted harder as rates rise.",
+          },
+        ],
+      },
+      {
+        id: "ma-2",
+        title: "Inflation",
+        subtitle: "The erosion of purchasing power",
+        minutes: 5,
+        xp: 35,
+        slides: [
+          {
+            title: "Prices rising over time",
+            body: [
+              "Inflation is the general rise in prices, which reduces what each dollar can buy.",
+              "Moderate inflation is normal; high inflation erodes savings and unsettles markets.",
+            ],
+            keyTakeaway: "Inflation is why cash loses value over time and why investing matters.",
+          },
+          {
+            title: "Inflation and your investments",
+            body: [
+              "Stocks have historically outpaced inflation over long periods, though not always in the short run.",
+              "Cash and low-yield bonds can lose real value when inflation runs hot.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "ma-2-q1",
+            type: "multiple_choice",
+            prompt: "Inflation refers to:",
+            options: [
+              "The general rise in prices over time",
+              "A stock split",
+              "A type of dividend",
+              "Falling interest rates",
+            ],
+            answer: 0,
+            explanation: "Inflation is a broad increase in prices that erodes purchasing power.",
+          },
+          {
+            id: "ma-2-q2",
+            type: "true_false",
+            prompt: "Holding only cash protects you fully from inflation.",
+            options: ["True", "False"],
+            answer: 1,
+            explanation: "Cash loses real value as inflation rises; it doesn't protect purchasing power.",
+          },
+        ],
+      },
+      {
+        id: "ma-3",
+        title: "The business cycle",
+        subtitle: "Expansion and contraction",
+        minutes: 5,
+        xp: 35,
+        slides: [
+          {
+            title: "Economies move in cycles",
+            body: [
+              "Economies expand (growth, hiring, rising spending) and eventually contract, then recover — the business cycle.",
+              "A recession is a significant, broad decline in activity, often defined loosely as two quarters of shrinking output.",
+            ],
+            keyTakeaway: "Growth and downturns are recurring phases, not permanent states.",
+          },
+          {
+            title: "Investing across the cycle",
+            body: [
+              "Different sectors tend to lead at different phases — defensives hold up in downturns, cyclicals shine in recoveries.",
+              "Timing the cycle precisely is very hard; a diversified, long-term plan rides through it.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "ma-3-q1",
+            type: "multiple_choice",
+            prompt: "A recession is best described as:",
+            options: [
+              "A single bad trading day",
+              "A significant, broad decline in economic activity",
+              "A period of rising stock prices",
+              "A type of tax",
+            ],
+            answer: 1,
+            explanation: "A recession is a broad, sustained contraction in economic activity.",
+          },
+          {
+            id: "ma-3-q2",
+            type: "true_false",
+            prompt: "Precisely timing the business cycle is easy and reliable.",
+            options: ["True", "False"],
+            answer: 1,
+            explanation: "Cycle timing is notoriously difficult; diversification and time are more reliable.",
+          },
+        ],
+      },
+    ],
+  },
+
+  // ────────────────────────────────────────────────────────────────────────
+  // 18. BEHAVIORAL FINANCE
+  // ────────────────────────────────────────────────────────────────────────
+  {
+    id: "behavioral-finance",
+    title: "Behavioral Finance",
+    description: "The mental biases that quietly sabotage returns — and how to counter them.",
+    level: "Intermediate",
+    icon: "🧩",
+    color: "#f0a868",
+    lessons: [
+      {
+        id: "bf-1",
+        title: "Recency & anchoring",
+        subtitle: "Overweighting the wrong info",
+        minutes: 5,
+        xp: 35,
+        slides: [
+          {
+            title: "Recency bias",
+            body: [
+              "Recency bias is assuming recent trends will continue — chasing what's hot or fleeing what just fell.",
+              "It leads to buying high in booms and selling low in busts.",
+            ],
+            keyTakeaway: "The recent past feels predictive but often isn't. Beware chasing trends.",
+          },
+          {
+            title: "Anchoring",
+            body: [
+              "Anchoring is fixating on a reference number — like the price you paid — and judging everything against it.",
+              "'I'll sell when it gets back to what I paid' is anchoring, not analysis.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "bf-1-q1",
+            type: "multiple_choice",
+            prompt: "Recency bias leads investors to:",
+            options: [
+              "Assume recent trends will continue",
+              "Ignore all news",
+              "Always buy low",
+              "Diversify perfectly",
+            ],
+            answer: 0,
+            explanation: "Recency bias overweights recent events, fueling trend-chasing.",
+          },
+          {
+            id: "bf-1-q2",
+            type: "true_false",
+            prompt: "Refusing to sell until a stock returns to your purchase price is an example of anchoring.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "Fixating on your entry price is a classic anchor that clouds judgment.",
+          },
+        ],
+      },
+      {
+        id: "bf-2",
+        title: "Sunk cost & confirmation",
+        subtitle: "Two costly traps",
+        minutes: 5,
+        xp: 35,
+        slides: [
+          {
+            title: "The sunk-cost fallacy",
+            body: [
+              "The sunk-cost fallacy is holding a losing investment because of what you've already put in, rather than its future prospects.",
+              "Past losses are gone; the only question is whether it's the best home for your money now.",
+            ],
+            keyTakeaway: "Decide based on the future, not on money already spent.",
+          },
+          {
+            title: "Confirmation bias",
+            body: [
+              "Confirmation bias is seeking out information that agrees with you and dismissing what doesn't.",
+              "Deliberately looking for the bear case on your own holdings is a healthy antidote.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "bf-2-q1",
+            type: "multiple_choice",
+            prompt: "The sunk-cost fallacy is:",
+            options: [
+              "Holding a loser because of money already invested",
+              "Selling winners too early",
+              "Diversifying broadly",
+              "Reinvesting dividends",
+            ],
+            answer: 0,
+            explanation: "It's letting past, unrecoverable costs drive current decisions.",
+          },
+          {
+            id: "bf-2-q2",
+            type: "true_false",
+            prompt: "Seeking out views that challenge your own helps counter confirmation bias.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "Actively considering opposing evidence is the antidote to confirmation bias.",
+          },
+        ],
+      },
+      {
+        id: "bf-3",
+        title: "Building better habits",
+        subtitle: "Systems beat willpower",
+        minutes: 5,
+        xp: 40,
+        slides: [
+          {
+            title: "Rules over impulses",
+            body: [
+              "Automating contributions and rebalancing removes emotion from the moments that matter most.",
+              "A written investment policy — your goals, allocation, and rules — keeps you steady when markets aren't.",
+            ],
+            keyTakeaway: "Good systems make good behavior the default, not a daily battle.",
+          },
+        ],
+        questions: [
+          {
+            id: "bf-3-q1",
+            type: "multiple_choice",
+            prompt: "A reliable way to reduce emotional investing mistakes is to:",
+            options: [
+              "Watch prices all day",
+              "Automate contributions and follow a written plan",
+              "Trade on every headline",
+              "Avoid diversification",
+            ],
+            answer: 1,
+            explanation: "Automation and a written plan make disciplined behavior the default.",
+          },
+          {
+            id: "bf-3-q2",
+            type: "true_false",
+            prompt: "A written investment plan helps you stay steady during volatility.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "Rules set in calm times guide you through turbulent ones.",
+          },
+        ],
+      },
+    ],
+  },
+
+  // ────────────────────────────────────────────────────────────────────────
+  // 19. ACCOUNT & TAX STRATEGY
+  // ────────────────────────────────────────────────────────────────────────
+  {
+    id: "account-tax-strategy",
+    title: "Account & Tax Strategy",
+    description: "Which account to use first, and how different income is taxed.",
+    level: "Advanced",
+    icon: "🗂️",
+    color: "#9fd8a0",
+    lessons: [
+      {
+        id: "at-1",
+        title: "TFSA vs. RRSP: which first?",
+        subtitle: "A practical framework",
+        minutes: 6,
+        xp: 40,
+        slides: [
+          {
+            title: "Different tax timing",
+            body: [
+              "A TFSA is funded with after-tax money and grows/withdraws tax-free. An RRSP gives a deduction now but is taxed on withdrawal.",
+              "Roughly: RRSP tends to win if your tax rate will be lower in retirement; TFSA offers flexibility and tax-free growth regardless.",
+            ],
+            keyTakeaway: "RRSP defers tax to (ideally lower) future rates; TFSA is tax-free and flexible.",
+          },
+          {
+            title: "A common priority",
+            body: [
+              "Many people first capture any employer match, then use a TFSA for flexibility, then an RRSP for higher incomes.",
+              "The right order depends on your income now vs. expected in retirement.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "at-1-q1",
+            type: "multiple_choice",
+            prompt: "An RRSP is generally most advantageous when:",
+            options: [
+              "Your tax rate will be lower in retirement than today",
+              "You never plan to retire",
+              "You want to pay more tax now",
+              "You have no income",
+            ],
+            answer: 0,
+            explanation: "Deducting at a high rate now and withdrawing at a lower rate later is the RRSP win.",
+          },
+          {
+            id: "at-1-q2",
+            type: "true_false",
+            prompt: "A TFSA's growth and withdrawals are tax-free.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "TFSA money is after-tax going in, then grows and comes out tax-free.",
+          },
+        ],
+      },
+      {
+        id: "at-2",
+        title: "How investment income is taxed",
+        subtitle: "Not all gains are equal",
+        minutes: 6,
+        xp: 40,
+        slides: [
+          {
+            title: "Capital gains vs. dividends vs. interest",
+            body: [
+              "In taxable accounts, capital gains and many dividends often get more favorable treatment than ordinary interest income.",
+              "Interest (from bonds/savings) is typically taxed at your full rate, making it less tax-efficient.",
+            ],
+            keyTakeaway: "Interest is usually taxed hardest; capital gains and qualified dividends are often lighter.",
+          },
+          {
+            title: "Why it guides placement",
+            body: [
+              "This is the logic behind asset location: hold tax-inefficient, interest-bearing assets in sheltered accounts.",
+              "Keep tax-efficient growth assets where their favorable treatment isn't wasted.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "at-2-q1",
+            type: "multiple_choice",
+            prompt: "Which is typically the LEAST tax-efficient in a taxable account?",
+            options: ["Long-term capital gains", "Qualified dividends", "Ordinary interest income", "Unrealized gains"],
+            answer: 2,
+            explanation: "Interest income is usually taxed at your full ordinary rate.",
+          },
+          {
+            id: "at-2-q2",
+            type: "true_false",
+            prompt: "Tax treatment of income is a key reason to think about which account holds which asset.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "That's exactly the idea behind asset location.",
+          },
+        ],
+      },
+      {
+        id: "at-3",
+        title: "Contribution room & limits",
+        subtitle: "Use it, don't abuse it",
+        minutes: 5,
+        xp: 40,
+        slides: [
+          {
+            title: "Registered accounts have caps",
+            body: [
+              "Tax-advantaged accounts have annual (and cumulative) contribution limits. Unused room often carries forward.",
+              "Over-contributing can trigger penalties, so track your room.",
+            ],
+            keyTakeaway: "Know your contribution room — the tax perks come with limits.",
+          },
+        ],
+        questions: [
+          {
+            id: "at-3-q1",
+            type: "true_false",
+            prompt: "Tax-advantaged accounts typically have contribution limits.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "Registered accounts cap how much you can contribute, often with carry-forward room.",
+          },
+          {
+            id: "at-3-q2",
+            type: "multiple_choice",
+            prompt: "Over-contributing to a registered account can result in:",
+            options: ["A bonus", "Penalties", "Higher returns", "A stock split"],
+            answer: 1,
+            explanation: "Exceeding your limit can trigger penalty taxes.",
+          },
+        ],
+      },
+    ],
+  },
+
+  // ────────────────────────────────────────────────────────────────────────
+  // 20. MANAGED & THEMATIC INVESTING
+  // ────────────────────────────────────────────────────────────────────────
+  {
+    id: "managed-thematic",
+    title: "Managed & Thematic",
+    description: "Hands-off options, values-based investing, and holding foreign assets.",
+    level: "Intermediate",
+    icon: "🧭",
+    color: "#c5a3ff",
+    lessons: [
+      {
+        id: "mt-1",
+        title: "Robo-advisors & managed portfolios",
+        subtitle: "Investing on autopilot",
+        minutes: 5,
+        xp: 35,
+        slides: [
+          {
+            title: "Automated portfolios",
+            body: [
+              "A robo-advisor builds and manages a diversified portfolio for you based on your goals and risk tolerance, automatically rebalancing.",
+              "It's a low-effort, low-cost option for people who don't want to pick investments themselves.",
+            ],
+            keyTakeaway: "Robo-advisors automate diversification and rebalancing for a small fee.",
+          },
+          {
+            title: "The trade-off",
+            body: [
+              "You give up hands-on control and pay a management fee, but gain simplicity and discipline.",
+              "For many beginners, that's a worthwhile trade.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "mt-1-q1",
+            type: "multiple_choice",
+            prompt: "A robo-advisor primarily:",
+            options: [
+              "Guarantees profits",
+              "Automatically builds and rebalances a diversified portfolio",
+              "Only buys crypto",
+              "Times the market perfectly",
+            ],
+            answer: 1,
+            explanation: "It automates portfolio construction and rebalancing to your risk profile.",
+          },
+          {
+            id: "mt-1-q2",
+            type: "true_false",
+            prompt: "Robo-advisors trade some control for simplicity and discipline.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "You hand off decisions and pay a fee in exchange for a hands-off experience.",
+          },
+        ],
+      },
+      {
+        id: "mt-2",
+        title: "ESG & thematic investing",
+        subtitle: "Investing with a lens",
+        minutes: 5,
+        xp: 35,
+        slides: [
+          {
+            title: "Aligning with values or trends",
+            body: [
+              "ESG investing screens for environmental, social, and governance factors. Thematic investing targets a trend, like clean energy or AI.",
+              "Both narrow your universe, which can mean more concentration and different risk than a broad index.",
+            ],
+            keyTakeaway: "Themed investing expresses a view but usually reduces diversification.",
+          },
+          {
+            title: "Watch fees and overlap",
+            body: [
+              "Thematic funds often charge higher fees and may overlap heavily with what you already own.",
+              "Treat them as a satellite around a diversified core, not the whole portfolio.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "mt-2-q1",
+            type: "multiple_choice",
+            prompt: "A thematic fund (e.g. clean energy) tends to be:",
+            options: [
+              "More diversified than a broad index",
+              "More concentrated, with higher fees",
+              "Risk-free",
+              "A type of bond",
+            ],
+            answer: 1,
+            explanation: "Narrowing to a theme concentrates risk and often costs more.",
+          },
+          {
+            id: "mt-2-q2",
+            type: "true_false",
+            prompt: "Thematic funds are best used as a satellite around a diversified core.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "Keeping them small limits the concentration risk they add.",
+          },
+        ],
+      },
+      {
+        id: "mt-3",
+        title: "Currency & foreign stocks",
+        subtitle: "The hidden FX factor",
+        minutes: 5,
+        xp: 40,
+        slides: [
+          {
+            title: "Two bets in one",
+            body: [
+              "When you buy a foreign stock, your return depends on both the stock's performance AND the exchange rate between currencies.",
+              "A rising stock can still lose you money if its currency falls against yours.",
+            ],
+            keyTakeaway: "Foreign holdings carry currency risk on top of the investment itself.",
+          },
+          {
+            title: "Hedged vs. unhedged",
+            body: [
+              "Some funds offer 'currency-hedged' versions that neutralize FX swings, usually for a small extra cost.",
+              "Unhedged exposure adds diversification but also adds currency volatility.",
+            ],
+          },
+        ],
+        questions: [
+          {
+            id: "mt-3-q1",
+            type: "multiple_choice",
+            prompt: "Buying a foreign stock exposes you to:",
+            options: [
+              "Only the stock's performance",
+              "The stock's performance and the exchange rate",
+              "Neither",
+              "Only currency, never the stock",
+            ],
+            answer: 1,
+            explanation: "Your return combines the stock's move and the currency move.",
+          },
+          {
+            id: "mt-3-q2",
+            type: "true_false",
+            prompt: "A currency-hedged fund aims to neutralize exchange-rate swings.",
+            options: ["True", "False"],
+            answer: 0,
+            explanation: "Hedging removes most of the FX impact, usually for a small cost.",
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma";
 import { hashPassword, signToken, verifyPassword } from "../lib/auth";
 import { asyncHandler, requireAuth, AuthedRequest } from "../middleware/authMiddleware";
 import { sendPasswordResetCode } from "../services/email";
+import { validateEmail } from "../lib/emailValidation";
 
 export const authRouter = Router();
 
@@ -53,6 +54,12 @@ authRouter.post(
     }
     const email = normalizeEmail(parsed.data.email);
     const { password, firstName, lastName } = parsed.data;
+
+    // Stricter email validation: syntax, disposable domains, common typos.
+    const emailCheck = validateEmail(email);
+    if (!emailCheck.ok) {
+      return res.status(400).json({ error: emailCheck.error, suggestion: emailCheck.suggestion });
+    }
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
