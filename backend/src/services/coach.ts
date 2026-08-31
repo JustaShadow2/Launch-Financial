@@ -3,6 +3,7 @@ import { config } from "../lib/config";
 import { prisma } from "../lib/prisma";
 import { getAccountSummary, getNetWorth } from "./portfolio";
 import { getCandidateModels, isModelError } from "./groqModels";
+import { COURSES } from "../data/learningContent";
 
 /**
  * "Coach" — a learning chatbot powered by Groq (same GROQ_API_KEY setup as the
@@ -87,17 +88,70 @@ async function buildUserContext(userId: string): Promise<string> {
   return lines.join("\n");
 }
 
-function systemPrompt(userContext: string): string {
+/**
+ * Build a snapshot of what the user has learned and what's available next in
+ * the Learn academy. This lets the Coach ground its explanations in concepts
+ * the user has already covered, and suggest relevant lessons to learn next.
+ *
+ * Lessons are referenced to the model with a stable `id` so it can emit
+ * clickable links using the `[Title](lesson:<id>)` convention (see the system
+ * prompt). The frontend turns those into in-app navigation.
+ */
+async function buildLearningContext(userId: string): Promise<string> {
+  const rows = await prisma.lessonProgress.findMany({
+    where: { userId },
+    orderBy: { completedAt: "asc" },
+  });
+  const completedIds = new Set(rows.map((r) => r.lessonId));
+
+  const completedLines: string[] = [];
+  const nextLines: string[] = [];
+
+  for (const course of COURSES) {
+    for (const lesson of course.lessons) {
+      const label = `"${lesson.title}" (${course.title}) [id: ${lesson.id}]`;
+      if (completedIds.has(lesson.id)) {
+        completedLines.push(`- ${label}: ${lesson.subtitle}`);
+      } else {
+        // Only surface lessons that are unlocked-ish, i.e. the next handful the
+        // user could realistically take. Keep the catalog compact.
+        if (nextLines.length < 12) {
+          nextLines.push(`- ${label}: ${lesson.subtitle}`);
+        }
+      }
+    }
+  }
+
+  const parts: string[] = [];
+  if (completedLines.length > 0) {
+    parts.push(
+      `Lessons the user has completed in the Learn academy (${completedLines.length} total):\n` +
+        completedLines.join("\n")
+    );
+  } else {
+    parts.push("The user hasn't completed any Learn lessons yet.");
+  }
+
+  if (nextLines.length > 0) {
+    parts.push(
+      "Lessons available to suggest next (not yet completed):\n" + nextLines.join("\n")
+    );
+  } else {
+    parts.push("The user has completed every available lesson.");
+  }
+
+  return parts.join("\n\n");
+}
+
+function systemPrompt(userContext: string, learningContext: string): string {
   return [
     "You are the Launch Financial Coach — a friendly, encouraging investing tutor inside a",
     "SIMULATED trading app that uses fake money and real market prices. Your job is to help the",
     "user LEARN from the decisions they make in the simulator.",
     "",
-    "Guidelines:",
+    "## Content guidelines",
     "- Teach concepts and explain the reasoning behind what the user did (their buys, sells,",
     "  diversification, cash levels, gains/losses). Tie explanations to their actual portfolio below.",
-    "- Be concrete and concise. Prefer short paragraphs and bullet points. Aim for under 200 words",
-    "  unless the user asks for depth.",
     "- Since it's simulated money, encourage experimentation and reflection on outcomes.",
     "- Do NOT give personalized financial advice or tell the user to buy or sell specific securities.",
     "  Instead, explain trade-offs, concepts, and what to consider, and remind them it's a simulation.",
@@ -105,8 +159,32 @@ function systemPrompt(userContext: string): string {
     "- If the user has no accounts or trades yet, guide them on how to start in the app (open an",
     "  account on the Transfer page, add mock money, search the Market, place a trade).",
     "",
-    "The user's current simulated portfolio and recent decisions:",
+    "## Using the user's learning progress",
+    "- The user's completed and available Learn lessons are listed below. When you explain a concept",
+    "  the user has already studied, briefly connect it to that lesson so it reinforces their learning.",
+    "- When the user asks what to do or learn next, or when a concept in your answer maps to an",
+    "  available (not-yet-completed) lesson, SUGGEST that lesson. Only suggest lessons from the",
+    "  'available to suggest next' list — never invent lesson titles or ids, and don't re-suggest",
+    "  completed ones as if they were new.",
+    "- Link a lesson using this exact markdown format: [Lesson Title](lesson:<id>) using the id shown",
+    "  in brackets for that lesson. Example: [Diversification](lesson:bp-1). The app turns these into",
+    "  clickable links that open the lesson. Do not show the raw id to the user.",
+    "",
+    "## Output format (IMPORTANT — always follow)",
+    "- Respond in clean, well-structured Markdown. Keep it scannable.",
+    "- Open with one short sentence (1–2 lines) that directly addresses the question. No heading before it.",
+    "- Then use `###` headings to group the rest into short labeled sections when there's more than one idea.",
+    "- Use `-` bullet points for lists; keep each bullet to one idea. Use **bold** for key terms and numbers.",
+    "- Prefer short paragraphs (1–3 sentences). Avoid walls of text.",
+    "- If you suggest lessons, put them under a `### Learn next` section as a bulleted list of lesson links.",
+    "- Aim for under ~200 words unless the user asks for depth.",
+    "- End with a brief one-line reminder that it's all simulated when giving trade-related guidance.",
+    "",
+    "## The user's current simulated portfolio and recent decisions",
     userContext,
+    "",
+    "## The user's Learn academy progress",
+    learningContext,
   ].join("\n");
 }
 
@@ -133,11 +211,14 @@ export async function coachReply(userId: string, messages: ChatMessage[]): Promi
   }
 
   const trimmed = messages.slice(-MAX_HISTORY);
-  const userContext = await buildUserContext(userId);
+  const [userContext, learningContext] = await Promise.all([
+    buildUserContext(userId),
+    buildLearningContext(userId),
+  ]);
 
   const client = new Groq({ apiKey: config.groqApiKey });
   const chatMessages = [
-    { role: "system" as const, content: systemPrompt(userContext) },
+    { role: "system" as const, content: systemPrompt(userContext, learningContext) },
     ...trimmed.map((m) => ({ role: m.role, content: m.content })),
   ];
 
