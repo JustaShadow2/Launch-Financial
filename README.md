@@ -22,7 +22,7 @@ A full-stack investing app using **simulated money and real market prices**. Sig
 
 - **Backend:** Node + Express + TypeScript, Prisma ORM, PostgreSQL (Neon), JWT auth, Zod validation.
 - **Frontend:** React + TypeScript, Vite, React Router, Recharts.
-- **AI coach:** Groq (`groq-sdk`, `llama-3.3-70b-versatile`).
+- **AI coach:** Groq (`groq-sdk`; chat model auto-discovered at runtime).
 - **Email:** Resend (transactional password-reset codes).
 - **Deploy:** Docker on Render (single service serving API + built frontend); Neon-hosted Postgres.
 
@@ -126,7 +126,7 @@ Forgot-password sends a 6-digit code via [Resend](https://resend.com).
 
 ## Coach (AI chatbot)
 
-The Coach tab is powered by [Groq](https://console.groq.com) — the same setup as the AI-Chef project (`GROQ_API_KEY`, model `llama-3.3-70b-versatile`).
+The Coach tab is powered by [Groq](https://console.groq.com) — the same `GROQ_API_KEY` as the AI-Chef project. The chat model is **discovered dynamically** at runtime: the app queries Groq's `/models` endpoint, filters to chat-capable models, ranks them (preferring `openai/gpt-oss-*`), and tries them in order — falling back automatically if one is unavailable. This avoids breakage when Groq deprecates a model ID (as happened to `llama-3.3-70b-versatile`). Set `GROQ_MODEL` only if you want to pin a specific model.
 
 - Each request is grounded in the signed-in user's own portfolio: net worth, per-account cash and positions with P/L, and their most recent trades. Responses are tailored to what that user actually did.
 - It's an educational tutor — it explains concepts and the reasoning behind decisions, and deliberately avoids personalized buy/sell advice.

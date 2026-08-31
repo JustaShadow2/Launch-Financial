@@ -2,15 +2,17 @@ import Groq from "groq-sdk";
 import { config } from "../lib/config";
 import { prisma } from "../lib/prisma";
 import { getAccountSummary, getNetWorth } from "./portfolio";
+import { getCandidateModels, isModelError } from "./groqModels";
 
 /**
- * "Coach" — a learning chatbot powered by Groq (same setup as the AI-Chef
- * project: GROQ_API_KEY + llama-3.3-70b-versatile). It's tailored to each user:
- * every request is grounded in that user's actual holdings and recent buy/sell
- * decisions, so the guidance is specific to what they're doing.
+ * "Coach" — a learning chatbot powered by Groq (same GROQ_API_KEY setup as the
+ * AI-Chef project). The chat model is discovered dynamically from Groq's
+ * /models endpoint (model IDs get deprecated over time), and requests fall back
+ * across available models automatically if one is unavailable.
  *
- * It teaches and explains — it does NOT give personalized financial advice or
- * tell the user what to buy/sell. The system prompt enforces that boundary.
+ * It's tailored to each user: every request is grounded in that user's actual
+ * holdings and recent buy/sell decisions. It teaches and explains — it does NOT
+ * give personalized financial advice or tell the user what to buy/sell.
  */
 
 export function coachConfigured(): boolean {
@@ -116,6 +118,12 @@ export class CoachError extends Error {
   }
 }
 
+// The last model that successfully answered — useful for logs/diagnostics.
+let lastGoodModel: string | null = null;
+export function getLastGoodModel(): string | null {
+  return lastGoodModel;
+}
+
 export async function coachReply(userId: string, messages: ChatMessage[]): Promise<string> {
   if (!coachConfigured()) {
     throw new CoachError(
@@ -128,15 +136,44 @@ export async function coachReply(userId: string, messages: ChatMessage[]): Promi
   const userContext = await buildUserContext(userId);
 
   const client = new Groq({ apiKey: config.groqApiKey });
-  const completion = await client.chat.completions.create({
-    model: config.groqModel,
-    temperature: 0.7,
-    max_tokens: 900,
-    messages: [
-      { role: "system", content: systemPrompt(userContext) },
-      ...trimmed.map((m) => ({ role: m.role, content: m.content })),
-    ],
-  });
+  const chatMessages = [
+    { role: "system" as const, content: systemPrompt(userContext) },
+    ...trimmed.map((m) => ({ role: m.role, content: m.content })),
+  ];
 
-  return completion.choices[0]?.message?.content?.trim() || "Sorry, I couldn't generate a response.";
+  const candidates = await getCandidateModels(client);
+  if (candidates.length === 0) {
+    throw new CoachError("No Groq chat models are available for this API key.", 502);
+  }
+
+  let lastErr: unknown = null;
+  for (const model of candidates) {
+    try {
+      const completion = await client.chat.completions.create({
+        model,
+        temperature: 0.7,
+        max_tokens: 900,
+        messages: chatMessages,
+      });
+      lastGoodModel = model;
+      return (
+        completion.choices[0]?.message?.content?.trim() ||
+        "Sorry, I couldn't generate a response."
+      );
+    } catch (err) {
+      lastErr = err;
+      // If it's a model-availability problem, try the next candidate.
+      // Any other error (auth, rate limit, network) is fatal — stop.
+      if (isModelError(err)) {
+        console.warn(`[coach] Model "${model}" unavailable, trying next candidate…`);
+        continue;
+      }
+      break;
+    }
+  }
+
+  const e = lastErr as { status?: number; error?: { message?: string }; message?: string };
+  const status = e?.status && e.status >= 400 && e.status < 600 ? e.status : 502;
+  const detail = e?.error?.message || e?.message || "the model provider returned an error";
+  throw new CoachError(`The Coach couldn't respond right now (${detail}).`, status);
 }

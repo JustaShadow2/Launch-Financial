@@ -26,5 +26,8 @@ export const config = {
   // GROQ_API_KEY env var + the llama-3.3-70b-versatile model. If unset, the
   // coach endpoint returns a clear "unavailable" message.
   groqApiKey: process.env.GROQ_API_KEY || "",
-  groqModel: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+  // Optional override. If empty, the coach discovers an available chat model
+  // from Groq's /models endpoint at runtime (recommended — model IDs get
+  // deprecated over time). Set this only to pin a specific model.
+  groqModel: process.env.GROQ_MODEL || "",
 };
