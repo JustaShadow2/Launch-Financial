@@ -29,3 +29,9 @@ services:
         sync: false
       - key: EMAIL_FROM
         sync: false
+      # Learning coach chatbot (Groq LLM). Same key/model as the AI-Chef
+      # project. If unset, the Coach tab is shown as unavailable.
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile

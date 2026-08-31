@@ -111,7 +111,7 @@ export default function RegisterPage() {
           Already have an account? <Link to="/login">Log in</Link>
         </div>
         <div className="demo-hint">
-          You'll open your first account from the "Move money" page after signing up. Everything is
+          You'll open your first account from the "Transfer" page after signing up. Everything is
           simulated.
         </div>
       </div>

@@ -22,4 +22,9 @@ export const config = {
   emailFrom: process.env.EMAIL_FROM || "Launch Financial <onboarding@resend.dev>",
   // Public app name used in email copy.
   appName: "Launch Financial",
+  // Groq LLM (learning coach chatbot). Same setup as the AI-Chef project:
+  // GROQ_API_KEY env var + the llama-3.3-70b-versatile model. If unset, the
+  // coach endpoint returns a clear "unavailable" message.
+  groqApiKey: process.env.GROQ_API_KEY || "",
+  groqModel: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
 };

@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { useAccounts } from "../hooks/useAccounts";
-import { Candle } from "../api/types";
-import { useNavigate } from "react-router-dom";
-import { PriceChart } from "../components/PriceChart";
+import { NetWorthChart, NetWorthPoint } from "../components/NetWorthChart";
 import { formatMoney, formatPercent, gainClass } from "../lib/format";
 import { useAuth } from "../context/AuthContext";
 import { DailyLesson, LearnStats } from "../api/types";
@@ -14,6 +12,9 @@ interface NetWorth {
   investments: number;
   total: number;
 }
+
+const RANGES = ["1W", "1M", "3M", "1Y", "ALL"] as const;
+type Range = (typeof RANGES)[number];
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -32,21 +33,28 @@ export default function DashboardPage() {
     api.get<{ lesson: DailyLesson | null }>("/learn/daily").then((r) => setDaily(r.lesson)).catch(() => {});
   }, []);
 
-  const totalPL = accounts.reduce((s, a) => s + a.totalUnrealizedPL, 0);
-  const totalCost = accounts.reduce((s, a) => s + a.totalCostBasis, 0);
-  const plPct = totalCost ? (totalPL / totalCost) * 100 : 0;
-
-  // A simple synthetic net-worth trend from the largest account's top holding, for visual flavor.
-  const [trend, setTrend] = useState<Candle[]>([]);
+  // Real net-worth history over the selected range.
+  const [range, setRange] = useState<Range>("1M");
+  const [history, setHistory] = useState<NetWorthPoint[]>([]);
   useEffect(() => {
-    const top = accounts.flatMap((a) => a.positions).sort((a, b) => b.marketValue - a.marketValue)[0];
-    if (top) {
-      api
-        .get<{ candles: Candle[] }>(`/market/history/${top.symbol}?range=3M`)
-        .then((r) => setTrend(r.candles))
-        .catch(() => {});
-    }
-  }, [accounts]);
+    api
+      .get<{ points: NetWorthPoint[] }>(`/accounts/net-worth/history?range=${range}`)
+      .then((r) => setHistory(r.points))
+      .catch(() => setHistory([]));
+  }, [range, accounts]);
+
+  // Period change: first vs last point of the shown range.
+  const periodStart = history.length > 0 ? history[0].value : 0;
+  const periodEnd = history.length > 0 ? history[history.length - 1].value : net?.total ?? 0;
+  const periodChange = periodEnd - periodStart;
+  const periodChangePct = periodStart > 0 ? (periodChange / periodStart) * 100 : 0;
+  const rangeLabel: Record<Range, string> = {
+    "1W": "past week",
+    "1M": "past month",
+    "3M": "past 3 months",
+    "1Y": "past year",
+    ALL: "all time",
+  };
 
   if (loading) return <div className="loading">Loading your portfolio…</div>;
 
@@ -60,14 +68,28 @@ export default function DashboardPage() {
       <div className="card">
         <div className="stat-label">Net worth</div>
         <div className="stat-value big">{formatMoney(net?.total ?? 0)}</div>
-        <div className={gainClass(totalPL)} style={{ marginTop: 6, fontWeight: 600 }}>
-          {formatMoney(totalPL, { sign: true })} ({formatPercent(plPct)}) all time
+        <div className={gainClass(periodChange)} style={{ marginTop: 6, fontWeight: 600 }}>
+          {formatMoney(periodChange, { sign: true })} ({formatPercent(periodChangePct)}){" "}
+          <span className="muted" style={{ fontWeight: 400 }}>{rangeLabel[range]}</span>
         </div>
-        {trend.length > 1 && (
+
+        {history.length > 1 ? (
           <div style={{ marginTop: 16 }}>
-            <PriceChart candles={trend} positive={totalPL >= 0} height={200} />
+            <NetWorthChart points={history} positive={periodChange >= 0} height={200} range={range} />
+          </div>
+        ) : (
+          <div className="muted" style={{ marginTop: 16, fontSize: 14 }}>
+            Your net-worth history will appear here as you fund accounts and trade.
           </div>
         )}
+
+        <div className="seg mt-16">
+          {RANGES.map((r) => (
+            <button key={r} className={range === r ? "active" : ""} onClick={() => setRange(r)}>
+              {r}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-3 mt-16">

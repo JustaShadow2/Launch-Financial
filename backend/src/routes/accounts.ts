@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { asyncHandler, requireAuth, AuthedRequest } from "../middleware/authMiddleware";
-import { getAccountSummary, getNetWorth } from "../services/portfolio";
+import { getAccountSummary, getNetWorth, getNetWorthHistory } from "../services/portfolio";
 
 export const accountsRouter = Router();
 
@@ -34,6 +34,24 @@ accountsRouter.get(
   "/net-worth",
   asyncHandler(async (req: AuthedRequest, res) => {
     res.json(await getNetWorth(req.userId!));
+  })
+);
+
+// Net-worth history over time for the home chart. ?range=1W|1M|3M|1Y|ALL
+accountsRouter.get(
+  "/net-worth/history",
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const range = String(req.query.range || "1M").toUpperCase();
+    const rangeDays: Record<string, number> = {
+      "1W": 7,
+      "1M": 30,
+      "3M": 90,
+      "1Y": 365,
+      ALL: 1095, // up to ~3 years; reconstruction stops at the first transaction
+    };
+    const days = rangeDays[range] || 30;
+    const points = await getNetWorthHistory(req.userId!, days);
+    res.json({ range, points });
   })
 );
 

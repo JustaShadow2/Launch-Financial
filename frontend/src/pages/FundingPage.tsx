@@ -81,7 +81,7 @@ export default function FundingPage() {
 
   return (
     <div>
-      <h1 className="page-title">Move money</h1>
+      <h1 className="page-title">Transfer</h1>
       <p className="page-sub">Add or withdraw mock funds. Everything here is simulated.</p>
 
       {error && <div className="error-banner">{error}</div>}

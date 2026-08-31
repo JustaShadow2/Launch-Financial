@@ -7,9 +7,10 @@ const links = [
   { to: "/portfolio", label: "Portfolio" },
   { to: "/market", label: "Market" },
   { to: "/learn", label: "Learn" },
+  { to: "/coach", label: "Coach" },
   { to: "/watchlist", label: "Watchlist" },
   { to: "/activity", label: "Activity" },
-  { to: "/funding", label: "Move money" },
+  { to: "/funding", label: "Transfer" },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {

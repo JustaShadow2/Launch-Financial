@@ -14,6 +14,7 @@ import ActivityPage from "./pages/ActivityPage";
 import FundingPage from "./pages/FundingPage";
 import LearnPage from "./pages/LearnPage";
 import LessonPage from "./pages/LessonPage";
+import CoachPage from "./pages/CoachPage";
 
 function Protected({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -49,6 +50,7 @@ export default function App() {
       <Route path="/funding" element={<Protected><FundingPage /></Protected>} />
       <Route path="/learn" element={<Protected><LearnPage /></Protected>} />
       <Route path="/learn/lesson/:lessonId" element={<Protected><LessonPage /></Protected>} />
+      <Route path="/coach" element={<Protected><CoachPage /></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

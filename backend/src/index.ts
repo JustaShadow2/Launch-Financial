@@ -9,6 +9,7 @@ import { marketRouter } from "./routes/market";
 import { tradeRouter } from "./routes/trade";
 import { watchlistRouter } from "./routes/watchlist";
 import { learnRouter } from "./routes/learn";
+import { coachRouter } from "./routes/coach";
 import { startQuoteCache } from "./services/quoteCache";
 
 const app = express();
@@ -26,6 +27,7 @@ app.use("/api/market", marketRouter);
 app.use("/api/trade", tradeRouter);
 app.use("/api/watchlist", watchlistRouter);
 app.use("/api/learn", learnRouter);
+app.use("/api/coach", coachRouter);
 
 // In production, serve the built frontend (single-service deploy). The Vite
 // dev server handles this in development, so this is a no-op unless

@@ -138,3 +138,124 @@ export async function getNetWorth(userId: string) {
     total: round(cash + investments),
   };
 }
+
+// ── Net-worth history (reconstructed from the transaction ledger) ─────────────
+
+export interface NetWorthPoint {
+  t: number; // epoch ms (start of day, UTC)
+  value: number; // total net worth on that day
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Reconstruct daily total net worth over the trailing `days`.
+ *
+ * The transaction ledger is the source of truth for cash flows and share
+ * counts: DEPOSIT/WITHDRAWAL move cash; BUY/SELL move cash and shares. For
+ * each day we compute:
+ *   cash(day)        = sum of signed transaction amounts up to end of day
+ *   shares[sym](day) = net BUY/SELL quantity up to end of day
+ *   value(day)       = cash(day) + Σ shares[sym](day) × price[sym](day)
+ *
+ * Prices come from each symbol's historical series (Twelve Data, cached), with
+ * the latest known price carried forward for days a candle is missing. If no
+ * history is available for a symbol, its current price is used as a flat line.
+ */
+export async function getNetWorthHistory(userId: string, days: number): Promise<NetWorthPoint[]> {
+  const accounts = await prisma.account.findMany({
+    where: { userId },
+    select: { id: true },
+  });
+  const accountIds = accounts.map((a) => a.id);
+  if (accountIds.length === 0) return [];
+
+  const txns = await prisma.transaction.findMany({
+    where: { accountId: { in: accountIds } },
+    orderBy: { createdAt: "asc" },
+  });
+  if (txns.length === 0) return [];
+
+  const { getHistory } = await import("./marketData");
+
+  const todayIndex = Math.floor(Date.now() / DAY_MS);
+  const startIndex = todayIndex - (days - 1);
+
+  // Distinct symbols the user has ever traded.
+  const symbols = Array.from(
+    new Set(txns.filter((t) => t.symbol).map((t) => t.symbol as string))
+  );
+
+  // Build a day-indexed price lookup per symbol (carry forward last known).
+  const priceBySymbolDay = new Map<string, Map<number, number>>();
+  await Promise.all(
+    symbols.map(async (sym) => {
+      const dayPrices = new Map<number, number>();
+      try {
+        const candles = await getHistory(sym, days + 5);
+        for (const c of candles) {
+          dayPrices.set(Math.floor(c.t / DAY_MS), c.price);
+        }
+      } catch {
+        // leave empty; we'll fall back to current price below
+      }
+      if (dayPrices.size === 0) {
+        // No history — use the current price as a flat reference.
+        try {
+          const q = await getQuote(sym);
+          dayPrices.set(todayIndex, q.price);
+        } catch {
+          /* symbol unpriceable right now */
+        }
+      }
+      priceBySymbolDay.set(sym, dayPrices);
+    })
+  );
+
+  function priceOn(sym: string, dayIdx: number): number {
+    const m = priceBySymbolDay.get(sym);
+    if (!m || m.size === 0) return 0;
+    // Find the latest known price at or before dayIdx (carry forward).
+    for (let d = dayIdx; d >= dayIdx - 400; d--) {
+      const p = m.get(d);
+      if (p != null) return p;
+    }
+    // Otherwise use the earliest known price (backfill for days before history).
+    let earliestDay = Infinity;
+    let earliestPrice = 0;
+    for (const [d, p] of m) {
+      if (d < earliestDay) {
+        earliestDay = d;
+        earliestPrice = p;
+      }
+    }
+    return earliestPrice;
+  }
+
+  const out: NetWorthPoint[] = [];
+  for (let dayIdx = startIndex; dayIdx <= todayIndex; dayIdx++) {
+    const endOfDay = (dayIdx + 1) * DAY_MS - 1;
+
+    // Cash + share counts from all transactions up to end of this day.
+    let cash = 0;
+    const shares = new Map<string, number>();
+    for (const t of txns) {
+      if (t.createdAt.getTime() > endOfDay) break; // txns are asc-ordered
+      cash += t.amount; // signed: deposits +, withdrawals/buys -, sells +
+      if (t.symbol && t.quantity != null) {
+        const delta = t.type === "BUY" ? t.quantity : t.type === "SELL" ? -t.quantity : 0;
+        if (delta !== 0) shares.set(t.symbol, (shares.get(t.symbol) ?? 0) + delta);
+      }
+    }
+
+    let holdingsValue = 0;
+    for (const [sym, qty] of shares) {
+      if (qty <= 1e-9) continue;
+      holdingsValue += qty * priceOn(sym, dayIdx);
+    }
+
+    out.push({ t: dayIdx * DAY_MS, value: round(cash + holdingsValue) });
+  }
+
+  return out;
+}
