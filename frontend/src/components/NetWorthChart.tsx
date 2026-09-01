@@ -1,4 +1,4 @@
-import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatMoney } from "../lib/format";
 
 export interface NetWorthPoint {
@@ -38,6 +38,10 @@ export function NetWorthChart({ points, height = 220, positive = true, range = "
             <stop offset="100%" stopColor={color} stopOpacity={0} />
           </linearGradient>
         </defs>
+        {/* Bind the x-axis to the timestamp so the tooltip label resolves to
+            the actual date. Without a dataKey the tooltip label falls back to
+            the row index, which parses as epoch 0 (12/31/1969). */}
+        <XAxis dataKey="t" type="number" domain={["dataMin", "dataMax"]} hide />
         <YAxis domain={[min - pad, max + pad]} hide />
         <Tooltip
           contentStyle={{
