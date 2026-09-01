@@ -2489,9 +2489,10 @@ export const COURSES: Course[] = [
   {
     id: "advanced-options",
     title: "Advanced Options",
-    description: "Level up: the Greeks, spreads, protective puts, and cash-secured puts.",
+    description:
+      "Level up: option risk measures (the Greeks), spreads, protective puts, and cash-secured puts.",
     level: "Advanced",
-    icon: "🧠",
+    icon: "🎯",
     color: "#f48fb1",
     lessons: [
       {
@@ -2693,7 +2694,7 @@ export const COURSES: Course[] = [
     title: "Planning & Pitfalls",
     description: "Turn knowledge into a lifelong plan — and dodge the mistakes that sink returns.",
     level: "Advanced",
-    icon: "🧭",
+    icon: "🗺️",
     color: "#80cbc4",
     lessons: [
       {
@@ -2900,7 +2901,7 @@ export const COURSES: Course[] = [
     title: "Market Mechanics",
     description: "How the plumbing works: settlement, trading hours, splits, buybacks, DRIPs, and IPOs.",
     level: "Intermediate",
-    icon: "⚙️",
+    icon: "🔧",
     color: "#7cc6fe",
     lessons: [
       {
@@ -3184,7 +3185,7 @@ export const COURSES: Course[] = [
     title: "Margin & Short Selling",
     description: "Borrowing to invest and betting against stocks — the mechanics and the outsized risks.",
     level: "Advanced",
-    icon: "⚖️",
+    icon: "📉",
     color: "#ff8a80",
     lessons: [
       {
@@ -3999,7 +4000,7 @@ export const COURSES: Course[] = [
     title: "Managed & Thematic",
     description: "Hands-off options, values-based investing, and holding foreign assets.",
     level: "Intermediate",
-    icon: "🧭",
+    icon: "🎛️",
     color: "#c5a3ff",
     lessons: [
       {

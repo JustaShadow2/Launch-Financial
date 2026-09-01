@@ -25,6 +25,15 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28), 0 4px 14px rgba(0, 0, 0, 0.18);
   /* Hairline border, softened. */
   --border-soft: rgba(255, 255, 255, 0.07);
+
+  /* Learn difficulty palette. Each tier owns one color used consistently for
+     course borders, progress, lesson accents, and the level pill.
+       Beginner    → blue  (matches the old Financial Literacy accent)
+       Intermediate→ pink  (matches the old Building a Portfolio accent)
+       Advanced    → deep orange (distinct from the red loss color) */
+  --level-beginner: #7fb5ff;
+  --level-intermediate: #c792ea;
+  --level-advanced: #ff7a3c;
 }
 
 * {
@@ -115,6 +124,15 @@ button {
   border-top: 1px solid var(--border);
   padding-top: 16px;
 }
+/* Sidebar log out stands out in red so it's clearly distinct from navigation. */
+.nav-logout {
+  color: var(--loss);
+  margin-top: 4px;
+}
+.nav-logout:hover {
+  background: rgba(255, 107, 107, 0.12);
+  color: var(--loss);
+}
 
 .main {
   flex: 1;
@@ -165,9 +183,24 @@ button {
 .stat-value {
   font-size: 28px;
   font-weight: 700;
+  line-height: 1.15;
 }
 .stat-value.big {
   font-size: 40px;
+}
+
+/* Uniform stat cards: any .card inside a stat grid shares the same footprint
+   so a longer value (e.g. "Total invested") never reads as a bigger box than
+   its neighbors. The label pins to the top, the value to the bottom. */
+.grid-3 > .card,
+.grid-2 > .card {
+  display: flex;
+  flex-direction: column;
+  min-height: 104px;
+}
+.grid-3 > .card .stat-value,
+.grid-2 > .card .stat-value {
+  margin-top: auto;
 }
 
 /* Tables */
@@ -232,6 +265,18 @@ tr.clickable:hover td {
   background: transparent;
   color: var(--text-dim);
   border: 1px solid var(--border);
+}
+/* Log out: a red "pop-out" treatment. Tinted outline that fills on hover so it
+   reads as a deliberate, slightly cautionary action. */
+.btn-logout {
+  background: rgba(255, 107, 107, 0.1);
+  color: var(--loss);
+  border: 1px solid var(--loss);
+}
+.btn-logout:hover {
+  background: var(--loss);
+  color: #1a0505;
+  filter: none;
 }
 .btn-block {
   width: 100%;
@@ -425,10 +470,22 @@ select:focus {
 }
 
 /* ── Learning ──────────────────────────────────────────────────────────── */
+/* Learn stat cards keep their icon + text on one centered row, and override
+   the generic stat-card column layout so all three (streak / XP / lessons)
+   render at an identical size. */
+.grid-3 > .card.learn-stat {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+}
 .learn-stat {
   display: flex;
   align-items: center;
   gap: 14px;
+}
+.grid-3 > .card.learn-stat .stat-value {
+  margin-top: 0;
 }
 .learn-stat-icon {
   font-size: 30px;
@@ -443,14 +500,19 @@ select:focus {
   background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
 }
 
-.level-beginner {
-  color: var(--gain);
+/* Level pills: filled tint of the tier color so the difficulty name reads in
+   its own color. */
+.pill.level-beginner {
+  color: var(--level-beginner);
+  background: rgba(127, 181, 255, 0.14);
 }
-.level-intermediate {
-  color: #ffcb6b;
+.pill.level-intermediate {
+  color: var(--level-intermediate);
+  background: rgba(199, 146, 234, 0.14);
 }
-.level-advanced {
-  color: var(--loss);
+.pill.level-advanced {
+  color: var(--level-advanced);
+  background: rgba(255, 122, 60, 0.16);
 }
 
 .learn-courses {
@@ -502,7 +564,10 @@ select:focus {
   cursor: not-allowed;
 }
 .lesson-node.current {
-  box-shadow: 0 0 0 1px var(--accent) inset;
+  /* The inline borderColor carries the difficulty tint; thicken it slightly so
+     the current lesson stands out in its tier color rather than a fixed green. */
+  border-width: 2px;
+  padding: 11px 13px; /* compensate for the +1px border to avoid a size jump */
 }
 
 .lesson-node-badge {
@@ -671,7 +736,15 @@ select:focus {
 
 .empty-state {
   text-align: center;
-  padding: 32px 24px;
+  padding: 40px 24px;
+}
+/* Give the call-to-action room to breathe below the descriptive text, matching
+   the vertical rhythm of the stat cards above it. */
+.empty-state .btn {
+  margin-top: 12px;
+}
+.empty-state p {
+  margin-bottom: 24px;
 }
 
 .account-type-list {

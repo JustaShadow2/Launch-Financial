@@ -141,7 +141,7 @@ export default function DashboardPage() {
         <div className="card empty-state">
           <div style={{ fontSize: 40 }}>🚀</div>
           <h3 style={{ margin: "8px 0 4px" }}>Get started</h3>
-          <p className="muted" style={{ maxWidth: 440, margin: "0 auto 12px" }}>
+          <p className="muted" style={{ maxWidth: 440, margin: "0 auto 28px" }}>
             You don't have any accounts yet. Open your first account, add some mock money, and start
             investing.
           </p>

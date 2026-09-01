@@ -124,15 +124,15 @@ export default function ProfilePage() {
             <div style={{ fontSize: 20, fontWeight: 700 }}>
               {user?.firstName} {user?.lastName}
             </div>
-            <div className="muted">{user?.email}</div>
+            <div className="muted" style={{ marginTop: 10 }}>{user?.email}</div>
             {joined && (
-              <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+              <div className="muted" style={{ fontSize: 13, marginTop: 10 }}>
                 Member since {joined}
               </div>
             )}
           </div>
           <button
-            className="btn btn-ghost btn-sm"
+            className="btn btn-logout btn-sm"
             onClick={() => {
               logout();
               navigate("/login");
@@ -145,7 +145,7 @@ export default function ProfilePage() {
 
       {/* Edit name */}
       <div className="card mt-16">
-        <h3 style={{ marginTop: 0 }}>Name</h3>
+        <h3 style={{ marginTop: 0, color: "var(--accent)" }}>Name</h3>
         <Status error={nameMsg.error} success={nameMsg.success} />
         <form onSubmit={saveName}>
           <div className="row">
@@ -166,7 +166,7 @@ export default function ProfilePage() {
 
       {/* Change email */}
       <div className="card mt-16">
-        <h3 style={{ marginTop: 0 }}>Email</h3>
+        <h3 style={{ marginTop: 0, color: "var(--accent)" }}>Email</h3>
         <p className="muted" style={{ fontSize: 14, marginTop: 0 }}>
           Current: <strong>{user?.email}</strong>
         </p>
@@ -200,7 +200,7 @@ export default function ProfilePage() {
 
       {/* Change password */}
       <div className="card mt-16">
-        <h3 style={{ marginTop: 0 }}>Password</h3>
+        <h3 style={{ marginTop: 0, color: "var(--accent)" }}>Password</h3>
         <Status error={pwMsg.error} success={pwMsg.success} />
         <form onSubmit={savePassword}>
           <div className="field">

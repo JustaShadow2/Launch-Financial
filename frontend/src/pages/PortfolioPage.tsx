@@ -19,7 +19,7 @@ export default function PortfolioPage() {
         <div className="card empty-state">
           <div style={{ fontSize: 40 }}>📈</div>
           <h3 style={{ margin: "8px 0 4px" }}>No accounts yet</h3>
-          <p className="muted" style={{ maxWidth: 420, margin: "0 auto 12px" }}>
+          <p className="muted" style={{ maxWidth: 420, margin: "0 auto 28px" }}>
             Open an account and add money to start building your portfolio.
           </p>
           <Link to="/funding" className="btn">

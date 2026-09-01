@@ -45,7 +45,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </div>
           </Link>
           <button
-            className="nav-link"
+            className="nav-link nav-logout"
             style={{ background: "transparent", border: "none", textAlign: "left", width: "100%" }}
             onClick={() => {
               logout();

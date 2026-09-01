@@ -101,6 +101,14 @@ export default function LearnPage() {
   );
 }
 
+// Difficulty drives the course's accent color so borders, progress, lesson
+// accents, and the level pill all share one tier color.
+const LEVEL_COLORS: Record<string, string> = {
+  Beginner: "#7fb5ff",
+  Intermediate: "#c792ea",
+  Advanced: "#ff7a3c",
+};
+
 function CourseCard({
   course,
   onOpenLesson,
@@ -108,8 +116,9 @@ function CourseCard({
   course: CourseView;
   onOpenLesson: (lessonId: string) => void;
 }) {
+  const accent = LEVEL_COLORS[course.level] ?? course.color;
   return (
-    <div className="card course-card" style={{ borderTop: `3px solid ${course.color}` }}>
+    <div className="card course-card" style={{ borderTop: `3px solid ${accent}` }}>
       <div className="row spread" style={{ alignItems: "flex-start" }}>
         <div>
           <div style={{ fontSize: 22, fontWeight: 700 }}>
@@ -127,7 +136,7 @@ function CourseCard({
       <div className="progress-track mt-16">
         <div
           className="progress-fill"
-          style={{ width: `${course.percent}%`, background: course.color }}
+          style={{ width: `${course.percent}%`, background: accent }}
         />
       </div>
       <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
@@ -147,11 +156,11 @@ function CourseCard({
               title={lesson.title}
               style={
                 lesson.status === "completed" || lesson.status === "current"
-                  ? { borderColor: course.color }
+                  ? { borderColor: accent }
                   : undefined
               }
             >
-              <span className="lesson-node-badge" style={lesson.status === "completed" ? { background: course.color } : undefined}>
+              <span className="lesson-node-badge" style={lesson.status === "completed" ? { background: accent } : undefined}>
                 {lesson.status === "completed" ? "✓" : locked ? "🔒" : i + 1}
               </span>
               <span className="lesson-node-text">
