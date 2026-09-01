@@ -196,6 +196,8 @@ export default function CoachPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [available, setAvailable] = useState<boolean | null>(null);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [clearing, setClearing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -205,6 +207,33 @@ export default function CoachPage() {
       .then((r) => setAvailable(r.available))
       .catch(() => setAvailable(false));
   }, []);
+
+  // Load persisted chat history on mount.
+  useEffect(() => {
+    api
+      .get<{ messages: Msg[] }>("/coach/history")
+      .then((r) => setMessages(r.messages.map((m) => ({ role: m.role, content: m.content }))))
+      .catch(() => {
+        /* history is best-effort; start empty on failure */
+      })
+      .finally(() => setLoadingHistory(false));
+  }, []);
+
+  async function clearChat() {
+    if (clearing || messages.length === 0) return;
+    setClearing(true);
+    setError("");
+    const prev = messages;
+    setMessages([]); // optimistic
+    try {
+      await api.del("/coach/history");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't clear the chat. Try again.");
+      setMessages(prev); // roll back
+    } finally {
+      setClearing(false);
+    }
+  }
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -238,11 +267,24 @@ export default function CoachPage() {
 
   return (
     <div className="coach-wrap">
-      <h1 className="page-title">Coach</h1>
-      <p className="page-sub">
-        Your AI learning coach — it knows your simulated portfolio and trades, and helps you learn
-        from your decisions.
-      </p>
+      <div className="coach-header">
+        <div>
+          <h1 className="page-title">Coach</h1>
+          <p className="page-sub">
+            Your AI learning coach — it knows your simulated portfolio and trades, and helps you
+            learn from your decisions.
+          </p>
+        </div>
+        {messages.length > 0 && (
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={clearChat}
+            disabled={clearing || sending}
+          >
+            {clearing ? "Clearing…" : "Clear chat"}
+          </button>
+        )}
+      </div>
 
       {available === false && (
         <div className="error-banner">
@@ -252,7 +294,13 @@ export default function CoachPage() {
 
       <div className="card coach-chat">
         <div className="coach-messages" ref={scrollRef}>
-          {messages.length === 0 && (
+          {loadingHistory && messages.length === 0 && (
+            <div className="coach-empty">
+              <p className="muted">Loading your conversation…</p>
+            </div>
+          )}
+
+          {!loadingHistory && messages.length === 0 && (
             <div className="coach-empty">
               <div style={{ fontSize: 34 }}>🧑‍🏫</div>
               <h3 style={{ margin: "8px 0 4px" }}>Ask me about your investing</h3>

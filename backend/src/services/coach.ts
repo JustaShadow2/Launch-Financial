@@ -26,6 +26,59 @@ export interface ChatMessage {
 }
 
 const MAX_HISTORY = 12; // cap conversation turns sent upstream
+const MAX_STORED_MESSAGES = 100; // per-user cap on persisted chat history
+
+export interface StoredMessage {
+  role: "user" | "assistant";
+  content: string;
+  createdAt: string;
+}
+
+/** Load a user's persisted chat history, oldest first. */
+export async function getHistory(userId: string): Promise<StoredMessage[]> {
+  const rows = await prisma.coachMessage.findMany({
+    where: { userId },
+    orderBy: { createdAt: "asc" },
+    take: MAX_STORED_MESSAGES,
+  });
+  return rows.map((r) => ({
+    role: r.role === "assistant" ? "assistant" : "user",
+    content: r.content,
+    createdAt: r.createdAt.toISOString(),
+  }));
+}
+
+/** Delete a user's entire chat history. */
+export async function clearHistory(userId: string): Promise<void> {
+  await prisma.coachMessage.deleteMany({ where: { userId } });
+}
+
+/**
+ * Persist one exchange (the user's message + the assistant's reply), then prune
+ * the user's history back down to the most recent MAX_STORED_MESSAGES so
+ * storage stays flat regardless of how much they chat.
+ */
+async function persistExchange(userId: string, userText: string, reply: string): Promise<void> {
+  await prisma.coachMessage.createMany({
+    data: [
+      { userId, role: "user", content: userText },
+      { userId, role: "assistant", content: reply },
+    ],
+  });
+
+  // Prune: keep only the newest MAX_STORED_MESSAGES rows for this user.
+  const excess = await prisma.coachMessage.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    skip: MAX_STORED_MESSAGES,
+    select: { id: true },
+  });
+  if (excess.length > 0) {
+    await prisma.coachMessage.deleteMany({
+      where: { id: { in: excess.map((r) => r.id) } },
+    });
+  }
+}
 
 /** Build a compact, readable snapshot of the user's simulated portfolio. */
 async function buildUserContext(userId: string): Promise<string> {
@@ -237,10 +290,22 @@ export async function coachReply(userId: string, messages: ChatMessage[]): Promi
         messages: chatMessages,
       });
       lastGoodModel = model;
-      return (
+      const reply =
         completion.choices[0]?.message?.content?.trim() ||
-        "Sorry, I couldn't generate a response."
-      );
+        "Sorry, I couldn't generate a response.";
+
+      // Persist this exchange. The latest user message is the last one in the
+      // incoming array. Best-effort: a storage hiccup shouldn't break the reply.
+      const latestUser = [...messages].reverse().find((m) => m.role === "user");
+      if (latestUser) {
+        try {
+          await persistExchange(userId, latestUser.content, reply);
+        } catch (persistErr) {
+          console.warn("[coach] Failed to persist chat history:", persistErr);
+        }
+      }
+
+      return reply;
     } catch (err) {
       lastErr = err;
       // If it's a model-availability problem, try the next candidate.

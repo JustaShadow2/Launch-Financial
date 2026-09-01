@@ -28,6 +28,22 @@ model User {
   accounts     Account[]
   watchlist    WatchlistItem[]
   lessonProgress LessonProgress[]
+  coachMessages  CoachMessage[]
+}
+
+// A single message in the user's AI Coach conversation. Persisted so the chat
+// survives refreshes and follows the user across devices. Storage is kept flat
+// by pruning to the most recent N messages per user on write (see the coach
+// service). Content is small text; cost is negligible.
+model CoachMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   // "user" | "assistant"
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 // Per-user completion record for a lesson. Content itself is static (see

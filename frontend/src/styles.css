@@ -736,6 +736,12 @@ select:focus {
   max-width: 780px;
   margin: 0 auto;
 }
+.coach-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
 .coach-chat {
   padding: 0;
   display: flex;

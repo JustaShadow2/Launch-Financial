@@ -1,7 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler, requireAuth, AuthedRequest } from "../middleware/authMiddleware";
-import { coachConfigured, coachReply, CoachError } from "../services/coach";
+import {
+  coachConfigured,
+  coachReply,
+  CoachError,
+  getHistory,
+  clearHistory,
+} from "../services/coach";
 
 export const coachRouter = Router();
 
@@ -12,6 +18,24 @@ coachRouter.get(
   "/status",
   asyncHandler(async (_req, res) => {
     res.json({ available: coachConfigured() });
+  })
+);
+
+// The user's persisted chat history (oldest first).
+coachRouter.get(
+  "/history",
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const messages = await getHistory(req.userId!);
+    res.json({ messages });
+  })
+);
+
+// Clear the user's chat history.
+coachRouter.delete(
+  "/history",
+  asyncHandler(async (req: AuthedRequest, res) => {
+    await clearHistory(req.userId!);
+    res.json({ ok: true });
   })
 );
 
