@@ -1,24 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
-import { CourseView, DailyLesson, LearnStats } from "../api/types";
+import { CourseView, DailyLesson, LearnStats, LessonView } from "../api/types";
 
-// Crown pips: a compact 0..5 level indicator shown on completed lesson nodes,
-// mirroring Duolingo's crown levels. Filled pips = current crown level.
-function CrownPips({ level, accent }: { level: number; accent: string }) {
-  return (
-    <span className="crown-pips" title={`Crown level ${level} of 5`} aria-label={`Crown level ${level}`}>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <span
-          key={i}
-          className={`crown-pip ${i < level ? "filled" : ""}`}
-          style={i < level ? { background: accent } : undefined}
-        />
-      ))}
-      <span className="crown-emoji">👑</span>
-    </span>
-  );
-}
+// Difficulty drives each unit's accent color so the path, headers, and nodes
+// all share one tier color.
+const LEVEL_COLORS: Record<string, string> = {
+  Beginner: "#7fb5ff",
+  Intermediate: "#c792ea",
+  Advanced: "#ff7a3c",
+};
 
 export default function LearnPage() {
   const [courses, setCourses] = useState<CourseView[]>([]);
@@ -44,128 +35,103 @@ export default function LearnPage() {
 
   if (loading) return <div className="loading">Loading your academy…</div>;
 
-  return (
-    <div>
-      <h1 className="page-title">Learn</h1>
-      <p className="page-sub">Build your investing knowledge — one lesson a day.</p>
+  const openLesson = (id: string) => navigate(`/learn/lesson/${id}`);
 
-      {/* Stats strip */}
-      <div className="grid grid-3">
-        <div className="card learn-stat">
-          <div className="learn-stat-icon">🔥</div>
-          <div>
-            <div className="stat-value">{stats?.currentStreak ?? 0}</div>
-            <div className="stat-label">day streak</div>
-          </div>
+  return (
+    <div className="learn-page">
+      {/* Sticky gamified HUD — persistent streak / XP / freezes / progress. */}
+      <div className="learn-hud">
+        <div className="hud-stat" title="Day streak">
+          <span className="hud-icon">🔥</span>
+          <span className="hud-value">{stats?.currentStreak ?? 0}</span>
         </div>
-        <div className="card learn-stat">
-          <div className="learn-stat-icon">⚡</div>
-          <div>
-            <div className="stat-value">{stats?.xp ?? 0}</div>
-            <div className="stat-label">total XP</div>
-          </div>
+        <div className="hud-stat" title="Total XP">
+          <span className="hud-icon">⚡</span>
+          <span className="hud-value">{stats?.xp ?? 0}</span>
         </div>
-        <div className="card learn-stat">
-          <div className="learn-stat-icon">🎓</div>
-          <div>
-            <div className="stat-value">
-              {stats?.completedLessons ?? 0}
-              <span className="muted" style={{ fontSize: 18 }}>
-                /{stats?.totalLessons ?? 0}
-              </span>
-            </div>
-            <div className="stat-label">lessons done</div>
-          </div>
+        <div className="hud-stat" title="Streak freezes">
+          <span className="hud-icon">🧊</span>
+          <span className="hud-value">{stats?.streakFreezes ?? 0}</span>
+        </div>
+        <div className="hud-stat hud-stat-progress" title="Lessons completed">
+          <span className="hud-icon">🎓</span>
+          <span className="hud-value">
+            {stats?.completedLessons ?? 0}
+            <span className="hud-total">/{stats?.totalLessons ?? 0}</span>
+          </span>
         </div>
       </div>
 
-      {/* Streak-freeze indicator: shows how many freezes protect the streak,
-          and flags when one was just used to save it. */}
-      {stats && (stats.streakFreezes > 0 || stats.freezeUsedDay) && (
-        <div className="freeze-strip mt-16">
-          <span className="freeze-icon">🧊</span>
-          {stats.freezeUsedDay ? (
+      <div className="learn-body">
+        {/* A freeze just saved the streak — reassure the user. */}
+        {stats?.freezeUsedDay && (
+          <div className="freeze-strip">
+            <span className="freeze-icon">🧊</span>
             <span>
               A <strong>Streak Freeze</strong> saved your streak.{" "}
               {stats.streakFreezes} left.
             </span>
-          ) : (
-            <span>
-              <strong>{stats.streakFreezes}</strong> Streak Freeze
-              {stats.streakFreezes === 1 ? "" : "s"} banked — they auto-protect a missed day.
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Spaced-repetition review CTA: surfaces when items are due for review. */}
-      {stats && stats.overdueItems > 0 && (
-        <div className="card review-card mt-16">
-          <div>
-            <div className="row" style={{ gap: 8, marginBottom: 4 }}>
-              <span className="pill origin-review">Spaced review</span>
-            </div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>
-              🧠 {stats.overdueItems} item{stats.overdueItems === 1 ? "" : "s"} ready to review
-            </div>
-            <div className="muted">
-              Refresh concepts before you forget them — this is how the learning sticks.
-            </div>
           </div>
-          <button className="btn" onClick={() => navigate("/learn/review")}>
-            Review now
+        )}
+
+        {/* Spaced-repetition review CTA. */}
+        {stats && stats.overdueItems > 0 && (
+          <button className="review-banner" onClick={() => navigate("/learn/review")}>
+            <div className="review-banner-left">
+              <span className="review-banner-icon">🧠</span>
+              <div>
+                <div className="review-banner-title">
+                  {stats.overdueItems} item{stats.overdueItems === 1 ? "" : "s"} ready to review
+                </div>
+                <div className="review-banner-sub">
+                  Refresh concepts before you forget them.
+                </div>
+              </div>
+            </div>
+            <span className="review-banner-cta">Review →</span>
           </button>
-        </div>
-      )}
+        )}
 
-      {/* Daily plan card */}
-      {daily ? (
-        <div className="card daily-card mt-16">
-          <div>
-            <div className="row" style={{ gap: 8, marginBottom: 4 }}>
-              <span className="pill">{stats?.dailyGoalMet ? "Bonus lesson" : "Today's lesson"}</span>
-              {stats?.dailyGoalMet && <span className="pill" style={{ color: "var(--gain)" }}>Daily goal met ✓</span>}
+        {/* Continue banner — the daily lesson, prominent like Duolingo's. */}
+        {daily ? (
+          <div className="continue-banner">
+            <div>
+              <div className="continue-eyebrow">
+                {stats?.dailyGoalMet ? "BONUS LESSON" : "CONTINUE LEARNING"}
+              </div>
+              <div className="continue-title">
+                {daily.courseIcon} {daily.title}
+              </div>
+              <div className="continue-sub">
+                {daily.courseTitle} · {daily.minutes} min · +{daily.xp} XP
+                {stats?.dailyGoalMet && <span className="goal-met"> · Daily goal met ✓</span>}
+              </div>
             </div>
-            <div style={{ fontSize: 20, fontWeight: 700 }}>
-              {daily.courseIcon} {daily.title}
-            </div>
-            <div className="muted">
-              {daily.courseTitle} · {daily.minutes} min · +{daily.xp} XP
+            <button className="btn continue-btn" onClick={() => openLesson(daily.lessonId)}>
+              {stats?.dailyGoalMet ? "Keep going" : "Start"}
+            </button>
+          </div>
+        ) : (
+          <div className="continue-banner done">
+            <div>
+              <div className="continue-title">🏆 You've completed every lesson!</div>
+              <div className="continue-sub">
+                Amazing work. Revisit any lesson or run a review to keep your streak alive.
+              </div>
             </div>
           </div>
-          <button className="btn" onClick={() => navigate(`/learn/lesson/${daily.lessonId}`)}>
-            {stats?.dailyGoalMet ? "Keep going" : "Start lesson"}
-          </button>
-        </div>
-      ) : (
-        <div className="card daily-card mt-16">
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 700 }}>🏆 You've completed every lesson!</div>
-            <div className="muted">Amazing work. Revisit any lesson to keep your streak alive.</div>
-          </div>
-        </div>
-      )}
+        )}
 
-      {/* Courses */}
-      <h2 style={{ fontSize: 20, marginTop: 32 }}>Courses</h2>
-      <div className="learn-courses">
+        {/* The winding path — one section per course/unit. */}
         {courses.map((course) => (
-          <CourseCard key={course.id} course={course} onOpenLesson={(id) => navigate(`/learn/lesson/${id}`)} />
+          <UnitPath key={course.id} course={course} onOpenLesson={openLesson} />
         ))}
       </div>
     </div>
   );
 }
 
-// Difficulty drives the course's accent color so borders, progress, lesson
-// accents, and the level pill all share one tier color.
-const LEVEL_COLORS: Record<string, string> = {
-  Beginner: "#7fb5ff",
-  Intermediate: "#c792ea",
-  Advanced: "#ff7a3c",
-};
-
-function CourseCard({
+function UnitPath({
   course,
   onOpenLesson,
 }: {
@@ -173,65 +139,107 @@ function CourseCard({
   onOpenLesson: (lessonId: string) => void;
 }) {
   const accent = LEVEL_COLORS[course.level] ?? course.color;
+
   return (
-    <div className="card course-card" style={{ borderTop: `3px solid ${accent}` }}>
-      <div className="row spread" style={{ alignItems: "flex-start" }}>
-        <div>
-          <div style={{ fontSize: 22, fontWeight: 700 }}>
-            <span style={{ marginRight: 8 }}>{course.icon}</span>
+    <section className="unit">
+      {/* Unit header banner (Duolingo-style colored bar). */}
+      <div className="unit-header" style={{ background: accent }}>
+        <div className="unit-header-text">
+          <div className="unit-header-eyebrow">
+            {course.level} · {course.completedLessons}/{course.totalLessons}
+          </div>
+          <div className="unit-header-title">
+            <span className="unit-header-icon">{course.icon}</span>
             {course.title}
           </div>
-          <div className="muted" style={{ fontSize: 14, maxWidth: 460, marginTop: 4 }}>
-            {course.description}
-          </div>
         </div>
-        <span className={`pill level-${course.level.toLowerCase()}`}>{course.level}</span>
       </div>
 
-      {/* Progress bar */}
-      <div className="progress-track mt-16">
-        <div
-          className="progress-fill"
-          style={{ width: `${course.percent}%`, background: accent }}
-        />
+      {/* Winding vertical path of lesson nodes. */}
+      <div className="unit-path">
+        {course.lessons.map((lesson, i) => (
+          <PathNode
+            key={lesson.id}
+            lesson={lesson}
+            index={i}
+            accent={accent}
+            onOpen={() => onOpenLesson(lesson.id)}
+          />
+        ))}
       </div>
-      <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
-        {course.completedLessons} of {course.totalLessons} lessons · {course.percent}%
-      </div>
+    </section>
+  );
+}
 
-      {/* Lesson path */}
-      <div className="lesson-path mt-16">
-        {course.lessons.map((lesson, i) => {
-          const locked = lesson.status === "locked";
-          return (
-            <button
-              key={lesson.id}
-              className={`lesson-node ${lesson.status}`}
-              disabled={locked}
-              onClick={() => onOpenLesson(lesson.id)}
-              title={lesson.title}
-              style={
-                lesson.status === "completed" || lesson.status === "current"
-                  ? { borderColor: accent }
-                  : undefined
-              }
-            >
-              <span className="lesson-node-badge" style={lesson.status === "completed" ? { background: accent } : undefined}>
-                {lesson.status === "completed" ? "✓" : locked ? "🔒" : i + 1}
-              </span>
-              <span className="lesson-node-text">
-                <span className="lesson-node-title">{lesson.title}</span>
-                <span className="lesson-node-sub muted">
-                  {lesson.subtitle} · +{lesson.xp} XP
-                </span>
-              </span>
-              {lesson.crownLevel > 0 && (
-                <CrownPips level={lesson.crownLevel} accent={accent} />
-              )}
-            </button>
-          );
-        })}
+// Serpentine horizontal offsets (as a fraction of the path width), repeating
+// so the trail winds left → center → right → center → left …
+const OFFSETS = [0, 0.22, 0.32, 0.22, 0, -0.22, -0.32, -0.22];
+
+function PathNode({
+  lesson,
+  index,
+  accent,
+  onOpen,
+}: {
+  lesson: LessonView;
+  index: number;
+  accent: string;
+  onOpen: () => void;
+}) {
+  const locked = lesson.status === "locked";
+  const completed = lesson.status === "completed";
+  const current = lesson.status === "current";
+  const offset = OFFSETS[index % OFFSETS.length];
+
+  return (
+    <div className="path-row" style={{ transform: `translateX(${offset * 120}px)` }}>
+      {current && <div className="path-start-bubble">START</div>}
+      <button
+        className={`path-node ${lesson.status}`}
+        disabled={locked}
+        onClick={onOpen}
+        title={`${lesson.title} — ${lesson.subtitle}`}
+        style={
+          completed || current
+            ? { background: accent, boxShadow: `0 6px 0 ${shade(accent)}` }
+            : undefined
+        }
+      >
+        <span className="path-node-face">
+          {completed ? "★" : locked ? "🔒" : index + 1}
+        </span>
+      </button>
+
+      {/* Crown pips under completed nodes. */}
+      {completed && lesson.crownLevel > 0 && (
+        <div className="path-crowns" aria-label={`Crown level ${lesson.crownLevel}`}>
+          {Array.from({ length: 5 }).map((_, p) => (
+            <span
+              key={p}
+              className={`path-crown-pip ${p < lesson.crownLevel ? "filled" : ""}`}
+              style={p < lesson.crownLevel ? { background: accent } : undefined}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Label — title + XP. */}
+      <div className={`path-label ${locked ? "muted" : ""}`}>
+        <span className="path-label-title">{lesson.title}</span>
+        <span className="path-label-sub">
+          {completed ? `Complete · 👑 ${lesson.crownLevel}` : `+${lesson.xp} XP`}
+        </span>
       </div>
     </div>
   );
+}
+
+// Darken a hex color for the node's 3D "lip" shadow.
+function shade(hex: string): string {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!m) return "rgba(0,0,0,0.3)";
+  const r = Math.max(0, parseInt(m[1], 16) - 55);
+  const g = Math.max(0, parseInt(m[2], 16) - 55);
+  const b = Math.max(0, parseInt(m[3], 16) - 55);
+  return `rgb(${r}, ${g}, ${b})`;
 }

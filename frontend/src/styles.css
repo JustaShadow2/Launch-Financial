@@ -469,39 +469,280 @@ select:focus {
   color: var(--text);
 }
 
-/* ── Learning ──────────────────────────────────────────────────────────── */
-/* Learn stat cards keep their icon + text on one centered row, and override
-   the generic stat-card column layout so all three (streak / XP / lessons)
-   render at an identical size. */
-.grid-3 > .card.learn-stat {
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 14px;
-}
-.learn-stat {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.grid-3 > .card.learn-stat .stat-value {
-  margin-top: 0;
-}
-.learn-stat-icon {
-  font-size: 30px;
-  line-height: 1;
+/* ── Learning (Duolingo-style gamified path) ─────────────────────────────── */
+
+.learn-page {
+  max-width: 640px;
+  margin: 0 auto;
 }
 
-.daily-card {
+/* Sticky HUD: persistent streak / XP / freezes / progress. */
+.learn-hud {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 12px 18px;
+  margin: -8px 0 4px;
+  background: rgba(13, 17, 23, 0.85);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-soft);
+}
+.hud-stat {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 800;
+  font-size: 17px;
+}
+.hud-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+.hud-value {
+  color: var(--text);
+}
+.hud-total {
+  color: var(--text-dim);
+  font-weight: 700;
+  font-size: 14px;
+}
+.hud-stat-progress {
+  margin-left: auto;
+}
+
+.learn-body {
+  padding-top: 8px;
+}
+
+/* Continue banner — prominent "jump back in" bar. */
+.continue-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  padding: 20px 22px;
+  border-radius: var(--radius);
   background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 8px;
+}
+.continue-banner.done {
+  justify-content: flex-start;
+}
+.continue-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.continue-title {
+  font-size: 20px;
+  font-weight: 800;
+}
+.continue-sub {
+  color: var(--text-dim);
+  font-size: 14px;
+  margin-top: 3px;
+}
+.goal-met {
+  color: var(--gain);
+}
+.continue-btn {
+  flex-shrink: 0;
+  padding: 12px 26px;
+  font-weight: 800;
+  box-shadow: 0 4px 0 var(--accent-dim);
+}
+.continue-btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--accent-dim);
 }
 
-/* Level pills: filled tint of the tier color so the difficulty name reads in
-   its own color. */
+/* Spaced-review banner. */
+.review-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  text-align: left;
+  padding: 14px 18px;
+  border-radius: var(--radius);
+  background: rgba(127, 181, 255, 0.1);
+  border: 1px solid rgba(127, 181, 255, 0.28);
+  color: var(--text);
+  margin-bottom: 16px;
+}
+.review-banner:hover {
+  background: rgba(127, 181, 255, 0.16);
+}
+.review-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.review-banner-icon {
+  font-size: 26px;
+}
+.review-banner-title {
+  font-weight: 700;
+}
+.review-banner-sub {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.review-banner-cta {
+  color: #7fb5ff;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ── Units + the winding path ────────────────────────────────────────────── */
+.unit {
+  margin-top: 28px;
+}
+.unit-header {
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  color: #04140d;
+  box-shadow: var(--shadow-sm);
+}
+.unit-header-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  opacity: 0.72;
+  text-transform: uppercase;
+}
+.unit-header-title {
+  font-size: 20px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+.unit-header-icon {
+  font-size: 24px;
+}
+
+.unit-path {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+  padding: 34px 0 10px;
+}
+
+/* One node + its label, offset horizontally to create the serpentine trail. */
+.path-row {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform 0.2s ease;
+}
+
+/* The round lesson node. */
+.path-node {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  border: none;
+  background: var(--surface-2);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 0 var(--border);
+  transition: transform 0.1s ease, filter 0.15s ease;
+}
+.path-node:not(:disabled):hover {
+  filter: brightness(1.06);
+}
+.path-node:not(:disabled):active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 var(--border);
+}
+.path-node-face {
+  font-size: 26px;
+  font-weight: 800;
+}
+.path-node.completed .path-node-face,
+.path-node.current .path-node-face {
+  color: #04140d;
+}
+.path-node.locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3);
+}
+.path-node.current {
+  animation: node-bounce 1.8s ease-in-out infinite;
+}
+@keyframes node-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .path-node.current {
+    animation: none;
+  }
+}
+
+/* Floating "START" bubble above the current node. */
+.path-start-bubble {
+  position: absolute;
+  top: -30px;
+  background: var(--surface);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+  animation: node-bounce 1.8s ease-in-out infinite;
+}
+
+/* Crown pips beneath completed nodes. */
+.path-crowns {
+  display: flex;
+  gap: 3px;
+  margin-top: 8px;
+}
+.path-crown-pip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+/* Node label. */
+.path-label {
+  margin-top: 8px;
+  text-align: center;
+  max-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.path-label-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+.path-label-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* Level pills (kept for other views that still use them). */
 .pill.level-beginner {
   color: var(--level-beginner);
   background: rgba(127, 181, 255, 0.14);
@@ -515,16 +756,7 @@ select:focus {
   background: rgba(255, 122, 60, 0.16);
 }
 
-.learn-courses {
-  display: grid;
-  gap: 16px;
-  margin-top: 12px;
-}
-
-.course-card {
-  padding: 22px;
-}
-
+/* Progress bar (still used inside the lesson player header). */
 .progress-track {
   height: 8px;
   background: var(--bg);
@@ -536,66 +768,6 @@ select:focus {
   height: 100%;
   border-radius: var(--radius-pill);
   transition: width 0.4s ease;
-}
-
-.lesson-path {
-  display: grid;
-  gap: 8px;
-}
-
-.lesson-node {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  text-align: left;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 12px 14px;
-  color: var(--text);
-  transition: transform 0.1s, border-color 0.15s, background 0.15s;
-}
-.lesson-node:not(:disabled):hover {
-  transform: translateX(2px);
-  background: var(--surface-2);
-}
-.lesson-node.locked {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-.lesson-node.current {
-  /* The inline borderColor carries the difficulty tint; thicken it slightly so
-     the current lesson stands out in its tier color rather than a fixed green. */
-  border-width: 2px;
-  padding: 11px 13px; /* compensate for the +1px border to avoid a size jump */
-}
-
-.lesson-node-badge {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  background: var(--surface-2);
-  color: var(--text);
-  flex-shrink: 0;
-}
-.lesson-node.completed .lesson-node-badge {
-  color: #04140d;
-}
-
-.lesson-node-text {
-  display: flex;
-  flex-direction: column;
-}
-.lesson-node-title {
-  font-weight: 600;
-  color: var(--text);
-}
-.lesson-node-sub {
-  font-size: 13px;
 }
 
 /* Lesson player */
