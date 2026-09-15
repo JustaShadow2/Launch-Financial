@@ -25,10 +25,20 @@ model User {
   // The date (YYYY-MM-DD) the user last completed a lesson, for streak logic.
   lastLessonDay String?
 
+  // Streak freezes: a consumable that auto-protects the streak on a missed day
+  // (Duolingo mechanic). Users hold a small number and earn more at streak
+  // milestones. `freezeLastEarnedDay` prevents earning more than once per day.
+  streakFreezes       Int     @default(0)
+  freezeLastEarnedDay String?
+  // The day (YYYY-MM-DD) a freeze was last auto-consumed, so the UI can tell
+  // the user "a freeze saved your streak".
+  freezeUsedDay       String?
+
   accounts     Account[]
   watchlist    WatchlistItem[]
   lessonProgress LessonProgress[]
   coachMessages  CoachMessage[]
+  itemMemories   ItemMemory[]
 }
 
 // A single message in the user's AI Coach conversation. Persisted so the chat
@@ -59,8 +69,39 @@ model LessonProgress {
   correct     Int      @default(0)
   total       Int      @default(0)
   xpEarned    Int      @default(0)
+  // Crown level (0..5, Duolingo mechanic). Each level makes the node's session
+  // tougher (more items, harder interleaving). 0 means completed but not yet
+  // leveled; a first completion sets it to 1.
+  crownLevel  Int      @default(0)
 
   @@unique([userId, lessonId])
+  @@index([userId])
+}
+
+// Per-user spaced-repetition memory state for a single quiz item (question).
+// Implements the Half-Life Regression (HLM) model: we estimate a half-life
+// `halfLife` (in hours) for how long the user retains this item, and compute a
+// recall probability p = 2^(-elapsed/halfLife). When p drops below a threshold
+// the item becomes "overdue" and is prioritized into the next review session.
+// Keyed by (userId, itemId); itemId is the stable question id (e.g. "gs-1-q1").
+model ItemMemory {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId       String   // stable question id, e.g. "gs-1-q1"
+  lessonId     String   // owning lesson, for lesson-scoped review
+  courseId     String
+  // HLM state.
+  halfLifeHours Float   @default(24) // estimated retention half-life in hours
+  lastReviewed  DateTime @default(now())
+  timesSeen     Int     @default(0)
+  timesCorrect  Int     @default(0)
+  timesWrong    Int     @default(0)
+  // Consecutive correct answers — drives half-life growth.
+  streak        Int     @default(0)
+
+  @@unique([userId, itemId])
+  @@index([userId, lessonId])
   @@index([userId])
 }
 

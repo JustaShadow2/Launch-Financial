@@ -655,10 +655,30 @@ select:focus {
 .quiz-option.correct {
   border-color: var(--gain);
   background: rgba(47, 206, 143, 0.12);
+  animation: pop-correct 0.28s ease;
 }
 .quiz-option.wrong {
   border-color: var(--loss);
   background: rgba(255, 107, 107, 0.12);
+  animation: shake-wrong 0.32s ease;
+}
+@keyframes pop-correct {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.025); }
+  100% { transform: scale(1); }
+}
+@keyframes shake-wrong {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .quiz-option.correct,
+  .quiz-option.wrong {
+    animation: none;
+  }
 }
 
 .explanation {
@@ -986,4 +1006,107 @@ select:focus {
 }
 .coach-input input {
   flex: 1;
+}
+
+/* ── Learn: crowns, streak freezes, spaced review ─────────────────────────── */
+
+/* Crown pips on completed lesson nodes (Duolingo-style 0..5 level). */
+.crown-pips {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.crown-pip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.crown-pip.filled {
+  background: var(--accent);
+}
+.crown-emoji {
+  font-size: 13px;
+  margin-left: 2px;
+  line-height: 1;
+}
+.crown-inline {
+  color: var(--text-dim);
+}
+
+/* Crown level-up banner on the lesson results screen. */
+.crown-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  font-weight: 600;
+}
+
+/* Streak-freeze strip on the Learn home + earned banner on results. */
+.freeze-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: rgba(127, 181, 255, 0.1);
+  border: 1px solid rgba(127, 181, 255, 0.25);
+  font-size: 14px;
+  color: var(--text);
+}
+.freeze-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+.freeze-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(127, 181, 255, 0.12);
+  border: 1px solid rgba(127, 181, 255, 0.3);
+  color: #7fb5ff;
+  font-weight: 600;
+}
+
+/* Spaced-review CTA card (mirrors the daily-card layout). */
+.review-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: linear-gradient(135deg, var(--surface) 0%, rgba(127, 181, 255, 0.08) 100%);
+}
+
+/* XP breakdown on the results screen. */
+.xp-breakdown {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 14px;
+  text-align: left;
+}
+
+/* Session item origin pills (new / reinforcement / review). */
+.pill.origin-new {
+  color: var(--accent);
+  background: rgba(50, 210, 150, 0.14);
+}
+.pill.origin-reinforcement {
+  color: #ffcb6b;
+  background: rgba(255, 203, 107, 0.14);
+}
+.pill.origin-review {
+  color: #7fb5ff;
+  background: rgba(127, 181, 255, 0.14);
 }

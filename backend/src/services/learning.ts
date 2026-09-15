@@ -8,6 +8,13 @@ import {
   TOTAL_LESSONS,
   findLesson,
 } from "../data/learningContent";
+import { countOverdue, recordReviews, ReviewOutcome } from "./spacedRepetition";
+import {
+  buildLessonSession,
+  buildReviewSession,
+  findQuestionById,
+  ownerLessonOf,
+} from "./learnSession";
 
 /**
  * Learning service: computes course/lesson progress, handles lesson completion,
@@ -41,6 +48,7 @@ export interface LessonView {
   status: "completed" | "current" | "locked";
   correct?: number;
   total?: number;
+  crownLevel: number; // 0..5; 0 for not-yet-completed lessons
 }
 
 export interface CourseView {
@@ -64,20 +72,30 @@ export interface LearnStats {
   totalLessons: number;
   dailyGoalMet: boolean; // completed a lesson today?
   lastLessonDay: string | null;
+  streakFreezes: number;
+  freezeUsedDay: string | null; // set when a freeze auto-saved the streak
+  overdueItems: number; // items due for spaced-repetition review
 }
 
 // ── Progress assembly ────────────────────────────────────────────────────────
 
-async function getCompletedSet(userId: string): Promise<Map<string, { correct: number; total: number }>> {
+interface Progress {
+  correct: number;
+  total: number;
+  crownLevel: number;
+}
+
+async function getCompletedSet(userId: string): Promise<Map<string, Progress>> {
   const rows = await prisma.lessonProgress.findMany({ where: { userId } });
-  const map = new Map<string, { correct: number; total: number }>();
-  for (const r of rows) map.set(r.lessonId, { correct: r.correct, total: r.total });
+  const map = new Map<string, Progress>();
+  for (const r of rows)
+    map.set(r.lessonId, { correct: r.correct, total: r.total, crownLevel: r.crownLevel });
   return map;
 }
 
 function buildCourseView(
   course: Course,
-  completed: Map<string, { correct: number; total: number }>
+  completed: Map<string, Progress>
 ): CourseView {
   let completedCount = 0;
   let foundCurrent = false;
@@ -104,6 +122,7 @@ function buildCourseView(
       status,
       correct: done?.correct,
       total: done?.total,
+      crownLevel: done?.crownLevel ?? 0,
     };
   });
 
@@ -128,8 +147,11 @@ export async function getCourses(userId: string): Promise<CourseView[]> {
 }
 
 export async function getStats(userId: string): Promise<LearnStats> {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  // Run the lazy "daily validation loop" first — since there's no cron, we
+  // evaluate the streak/freeze state whenever stats are read.
+  const user = await validateStreak(userId);
   const completedLessons = await prisma.lessonProgress.count({ where: { userId } });
+  const overdueItems = await countOverdue(userId);
   const today = dayString();
   return {
     xp: user?.xp ?? 0,
@@ -139,7 +161,56 @@ export async function getStats(userId: string): Promise<LearnStats> {
     totalLessons: TOTAL_LESSONS,
     dailyGoalMet: user?.lastLessonDay === today,
     lastLessonDay: user?.lastLessonDay ?? null,
+    streakFreezes: user?.streakFreezes ?? 0,
+    freezeUsedDay: user?.freezeUsedDay ?? null,
+    overdueItems,
   };
+}
+
+/**
+ * Lazy daily-validation loop (blueprint §1A). Because we have no midnight cron,
+ * we evaluate on read: if the user missed exactly the days since their last
+ * lesson, spend one streak freeze per missed day to keep the streak alive
+ * (bounded by how many freezes they hold). If they can't cover the gap, the
+ * streak resets to 0. Returns the (possibly updated) user row.
+ */
+async function validateStreak(userId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return null;
+
+  const today = dayString();
+  const last = user.lastLessonDay;
+  if (!last) return user; // never practiced; nothing to validate
+
+  const gap = daysBetween(last, today);
+  // Practiced today or yesterday → streak is still valid, no action.
+  if (gap <= 1) return user;
+
+  // Missed (gap - 1) full days between the last active day and today. Each
+  // missed day can be covered by one freeze.
+  const missedDays = gap - 1;
+  if (user.currentStreak > 0 && user.streakFreezes >= missedDays) {
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        streakFreezes: user.streakFreezes - missedDays,
+        // Advance lastLessonDay to yesterday so the streak stays "current"
+        // without falsely marking today's goal as met.
+        lastLessonDay: dayString(new Date(Date.now() - 24 * 60 * 60 * 1000)),
+        freezeUsedDay: today,
+      },
+    });
+    return updated;
+  }
+
+  // Can't cover the gap → reset the streak.
+  if (user.currentStreak > 0) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { currentStreak: 0 },
+    });
+  }
+  return user;
 }
 
 /**
@@ -210,15 +281,154 @@ export async function getLessonContent(userId: string, lessonId: string) {
     courseColor: loc.course.color,
     lesson: loc.lesson,
     alreadyCompleted: alreadyDone,
+    crownLevel: completed.get(lessonId)?.crownLevel ?? 0,
   };
+}
+
+// ── Interactive sessions (spaced repetition + interleaving) ──────────────────
+
+/**
+ * Build an interleaved quiz session for a lesson, enforcing the same unlock
+ * rules as content access. The session mixes new lesson items with spaced
+ * review + recent-mistake reinforcement (see learnSession.ts).
+ */
+export async function getLessonSession(userId: string, lessonId: string) {
+  const loc = findLesson(lessonId);
+  if (!loc) throw new LearnError("Lesson not found", 404);
+
+  const completed = await getCompletedSet(userId);
+  const priorLessons = loc.course.lessons.slice(0, loc.index);
+  const allPriorDone = priorLessons.every((l) => completed.has(l.id));
+  const alreadyDone = completed.has(lessonId);
+  if (!allPriorDone && !alreadyDone) {
+    throw new LearnError("Complete the earlier lessons in this course first", 403);
+  }
+
+  const crownLevel = completed.get(lessonId)?.crownLevel ?? 0;
+  const session = await buildLessonSession(userId, lessonId, crownLevel);
+  if (!session) throw new LearnError("Lesson not found", 404);
+  return session;
+}
+
+/** Build a curriculum-wide review session of the user's most overdue items. */
+export async function getReviewSession(userId: string) {
+  const session = await buildReviewSession(userId);
+  if (!session) throw new LearnError("Nothing to review right now — great job!", 404);
+  return session;
+}
+
+export interface ReviewResult {
+  correct: number;
+  total: number;
+  xpEarned: number;
+  stats: LearnStats;
+  freezeEarned: boolean;
+}
+
+/**
+ * Complete a spaced-repetition review session. Unlike a lesson, this doesn't
+ * touch crown levels or lesson-completion — it records HLM memory updates and
+ * counts as daily practice (keeping the streak alive, earning modest XP).
+ */
+export async function completeReview({
+  userId,
+  responses,
+}: {
+  userId: string;
+  responses: ItemResponse[];
+}): Promise<ReviewResult> {
+  const seen = new Set<string>();
+  const reviewOutcomes: ReviewOutcome[] = [];
+  let firstTryCorrect = 0;
+
+  for (const r of responses) {
+    if (seen.has(r.itemId)) continue;
+    const q = findQuestionById(r.itemId);
+    if (!q) continue;
+    seen.add(r.itemId);
+    const owner = ownerLessonOf(r.itemId);
+    const ownerLoc = findLesson(owner);
+    const correct = Boolean(r.firstTry);
+    if (correct) firstTryCorrect++;
+    reviewOutcomes.push({
+      itemId: r.itemId,
+      lessonId: owner,
+      courseId: ownerLoc?.course.id ?? "",
+      correct,
+    });
+  }
+
+  const total = reviewOutcomes.length;
+  if (total === 0) throw new LearnError("No valid review items submitted", 400);
+
+  // Modest XP for review — encourages the habit without inflating totals.
+  const xpEarned = 5 + firstTryCorrect;
+  let freezeEarned = false;
+
+  await prisma.$transaction(async (tx) => {
+    await recordReviews(userId, reviewOutcomes, new Date(), tx);
+
+    const user = await tx.user.findUnique({ where: { id: userId } });
+    if (!user) throw new LearnError("User not found", 404);
+
+    const today = dayString();
+    let currentStreak = user.currentStreak;
+    if (user.lastLessonDay === today) {
+      // Already practiced today.
+    } else if (user.lastLessonDay && daysBetween(user.lastLessonDay, today) === 1) {
+      currentStreak = user.currentStreak + 1;
+    } else {
+      currentStreak = 1;
+    }
+    const longestStreak = Math.max(user.longestStreak, currentStreak);
+
+    let streakFreezes = user.streakFreezes;
+    let freezeLastEarnedDay = user.freezeLastEarnedDay;
+    if (
+      FREEZE_MILESTONES.has(currentStreak) &&
+      user.freezeLastEarnedDay !== today &&
+      streakFreezes < MAX_FREEZES
+    ) {
+      streakFreezes = Math.min(MAX_FREEZES, streakFreezes + 1);
+      freezeLastEarnedDay = today;
+      freezeEarned = true;
+    }
+
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        xp: user.xp + xpEarned,
+        currentStreak,
+        longestStreak,
+        lastLessonDay: today,
+        streakFreezes,
+        freezeLastEarnedDay,
+      },
+    });
+  });
+
+  const stats = await getStats(userId);
+  return { correct: firstTryCorrect, total, xpEarned, stats, freezeEarned };
 }
 
 // ── Completion + streak/XP ────────────────────────────────────────────────────
 
+// A single item response submitted from a completed session. `firstTry`
+// reflects whether the user got it right on the FIRST attempt (before the
+// mistake recycler requeued it) — that's what drives grading, HLM, and the
+// accuracy bonus. The recycler guarantees every item is eventually answered
+// correctly, so raw "final correctness" would always be 100%.
+export interface ItemResponse {
+  itemId: string;
+  firstTry: boolean;
+}
+
 interface CompleteInput {
   userId: string;
   lessonId: string;
-  answers: number[]; // selected option index per question, in order
+  responses: ItemResponse[];
+  // Total active answering time in seconds (for the speed bonus). Optional.
+  durationSeconds?: number;
 }
 
 export interface CompleteResult {
@@ -226,18 +436,62 @@ export interface CompleteResult {
   total: number;
   passed: boolean;
   xpEarned: number;
+  xpBreakdown: { base: number; accuracyBonus: number; speedBonus: number };
+  crownLevel: number;
+  leveledUp: boolean;
   results: Array<{ questionId: string; correct: boolean; correctAnswer: number; explanation: string }>;
   stats: LearnStats;
   firstCompletion: boolean;
+  freezeEarned: boolean;
 }
 
-// Require getting most questions right to "pass" and earn full XP.
+// Require getting most items right on the FIRST try to "pass" and earn full XP.
 function passThreshold(total: number): number {
-  // Need at least ceil(total * 0.6) correct.
   return Math.ceil(total * 0.6);
 }
 
-export async function completeLesson({ userId, lessonId, answers }: CompleteInput): Promise<CompleteResult> {
+// Streak milestones (in days) at which the user earns a streak freeze, capped
+// so the wallet can't balloon. Mirrors Duolingo's milestone rewards.
+const FREEZE_MILESTONES = new Set([7, 14, 30, 60, 100, 150, 200, 365]);
+const MAX_FREEZES = 5;
+
+/**
+ * XP with speed & accuracy bonuses (blueprint §1C):
+ *   - base: the lesson's XP (full on first completion, quarter on replays)
+ *   - accuracy bonus: up to +5 for a flawless first-try run
+ *   - speed bonus: up to +5 for finishing quickly without errors
+ */
+function computeXp(
+  baseXp: number,
+  firstCompletion: boolean,
+  total: number,
+  firstTryCorrect: number,
+  durationSeconds: number | undefined
+): { base: number; accuracyBonus: number; speedBonus: number; total: number } {
+  const base = firstCompletion ? baseXp : Math.round(baseXp * 0.25);
+
+  const accuracy = total > 0 ? firstTryCorrect / total : 0;
+  // Flawless → +5, scaling down; only meaningful on strong runs.
+  const accuracyBonus = accuracy >= 1 ? 5 : accuracy >= 0.9 ? 3 : accuracy >= 0.8 ? 1 : 0;
+
+  // Speed: reward ≲8s per item with no first-try misses. Up to +5.
+  let speedBonus = 0;
+  if (durationSeconds != null && total > 0 && firstTryCorrect === total) {
+    const perItem = durationSeconds / total;
+    if (perItem <= 5) speedBonus = 5;
+    else if (perItem <= 8) speedBonus = 3;
+    else if (perItem <= 12) speedBonus = 1;
+  }
+
+  return { base, accuracyBonus, speedBonus, total: base + accuracyBonus + speedBonus };
+}
+
+export async function completeLesson({
+  userId,
+  lessonId,
+  responses,
+  durationSeconds,
+}: CompleteInput): Promise<CompleteResult> {
   const loc = findLesson(lessonId);
   if (!loc) throw new LearnError("Lesson not found", 404);
 
@@ -250,77 +504,147 @@ export async function completeLesson({ userId, lessonId, answers }: CompleteInpu
     throw new LearnError("Complete the earlier lessons in this course first", 403);
   }
 
-  const questions = loc.lesson.questions;
-  const results = questions.map((q: QuizQuestion, i: number) => {
-    const selected = answers[i];
-    const isCorrect = selected === q.answer;
-    return {
+  // Grade authoritatively by itemId against the static content. The client
+  // sends per-item first-try outcomes; we look up each question to build the
+  // review outcomes and the explanation payload.
+  const seen = new Set<string>();
+  const reviewOutcomes: ReviewOutcome[] = [];
+  const results: CompleteResult["results"] = [];
+  let firstTryCorrect = 0;
+
+  for (const r of responses) {
+    if (seen.has(r.itemId)) continue; // ignore dupes
+    const q = findQuestionById(r.itemId);
+    if (!q) continue;
+    seen.add(r.itemId);
+    const owner = ownerLessonOf(r.itemId);
+    const ownerLoc = findLesson(owner);
+    const correct = Boolean(r.firstTry);
+    if (correct) firstTryCorrect++;
+    reviewOutcomes.push({
+      itemId: r.itemId,
+      lessonId: owner,
+      courseId: ownerLoc?.course.id ?? loc.course.id,
+      correct,
+    });
+    results.push({
       questionId: q.id,
-      correct: isCorrect,
+      correct,
       correctAnswer: q.answer,
       explanation: q.explanation,
-    };
-  });
+    });
+  }
 
-  const correct = results.filter((r) => r.correct).length;
-  const total = questions.length;
-  const passed = correct >= passThreshold(total);
+  const total = results.length;
+  const passed = total > 0 && firstTryCorrect >= passThreshold(total);
 
   if (!passed) {
-    // Don't record completion or award XP; let them retry.
+    // Still record spaced-repetition memory (the attempt is real learning
+    // signal), but don't complete the lesson, award XP, or touch the streak.
+    await recordReviews(userId, reviewOutcomes);
     const stats = await getStats(userId);
-    return { correct, total, passed, xpEarned: 0, results, stats, firstCompletion: false };
+    const prog = completedBefore.get(lessonId);
+    return {
+      correct: firstTryCorrect,
+      total,
+      passed,
+      xpEarned: 0,
+      xpBreakdown: { base: 0, accuracyBonus: 0, speedBonus: 0 },
+      crownLevel: prog ? prog.crownLevel : 0,
+      leveledUp: false,
+      results,
+      stats,
+      firstCompletion: false,
+      freezeEarned: false,
+    };
   }
 
   const firstCompletion = !alreadyDone;
-  const xpEarned = firstCompletion ? loc.lesson.xp : Math.round(loc.lesson.xp * 0.25); // reduced XP on repeats
+  const priorCrown = completedBefore.get(lessonId)?.crownLevel ?? 0;
+  const newCrown = Math.min(5, priorCrown + 1); // level up the node, cap at 5
+  const leveledUp = newCrown > priorCrown;
+
+  const xp = computeXp(loc.lesson.xp, firstCompletion, total, firstTryCorrect, durationSeconds);
+
+  let freezeEarned = false;
 
   await prisma.$transaction(async (tx) => {
-    // Upsert the progress row (records latest score).
     await tx.lessonProgress.upsert({
       where: { userId_lessonId: { userId, lessonId } },
       create: {
         userId,
         courseId: loc.course.id,
         lessonId,
-        correct,
+        correct: firstTryCorrect,
         total,
-        xpEarned,
+        xpEarned: xp.total,
+        crownLevel: newCrown,
       },
-      update: { correct, total, completedAt: new Date() },
+      update: {
+        correct: firstTryCorrect,
+        total,
+        completedAt: new Date(),
+        crownLevel: newCrown,
+      },
     });
 
-    // Update XP + streak on the user.
+    // Persist spaced-repetition memory for every item in the session.
+    await recordReviews(userId, reviewOutcomes, new Date(), tx);
+
     const user = await tx.user.findUnique({ where: { id: userId } });
     if (!user) throw new LearnError("User not found", 404);
 
     const today = dayString();
     let currentStreak = user.currentStreak;
-
     if (user.lastLessonDay === today) {
       // Already practiced today; streak unchanged.
     } else if (user.lastLessonDay && daysBetween(user.lastLessonDay, today) === 1) {
-      // Consecutive day: extend streak.
       currentStreak = user.currentStreak + 1;
     } else {
-      // First ever, or a gap: (re)start streak at 1.
       currentStreak = 1;
     }
     const longestStreak = Math.max(user.longestStreak, currentStreak);
 
+    // Earn a streak freeze at milestones (once per day, capped).
+    let streakFreezes = user.streakFreezes;
+    let freezeLastEarnedDay = user.freezeLastEarnedDay;
+    if (
+      FREEZE_MILESTONES.has(currentStreak) &&
+      user.freezeLastEarnedDay !== today &&
+      streakFreezes < MAX_FREEZES
+    ) {
+      streakFreezes = Math.min(MAX_FREEZES, streakFreezes + 1);
+      freezeLastEarnedDay = today;
+      freezeEarned = true;
+    }
+
     await tx.user.update({
       where: { id: userId },
       data: {
-        xp: user.xp + xpEarned,
+        xp: user.xp + xp.total,
         currentStreak,
         longestStreak,
         lastLessonDay: today,
+        streakFreezes,
+        freezeLastEarnedDay,
       },
     });
   });
 
   const stats = await getStats(userId);
-  return { correct, total, passed, xpEarned, results, stats, firstCompletion };
+  return {
+    correct: firstTryCorrect,
+    total,
+    passed,
+    xpEarned: xp.total,
+    xpBreakdown: { base: xp.base, accuracyBonus: xp.accuracyBonus, speedBonus: xp.speedBonus },
+    crownLevel: newCrown,
+    leveledUp,
+    results,
+    stats,
+    firstCompletion,
+    freezeEarned,
+  };
 }
 
 export function courseExists(courseId: string): boolean {

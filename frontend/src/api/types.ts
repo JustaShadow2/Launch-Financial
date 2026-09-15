@@ -97,6 +97,7 @@ export interface LessonView {
   status: LessonStatus;
   correct?: number;
   total?: number;
+  crownLevel: number; // 0..5; Duolingo-style node level
 }
 
 export interface CourseView {
@@ -120,6 +121,9 @@ export interface LearnStats {
   totalLessons: number;
   dailyGoalMet: boolean;
   lastLessonDay: string | null;
+  streakFreezes: number;
+  freezeUsedDay: string | null;
+  overdueItems: number;
 }
 
 export interface DailyLesson {
@@ -164,6 +168,49 @@ export interface LessonContent {
   courseColor: string;
   lesson: Lesson;
   alreadyCompleted: boolean;
+  crownLevel: number;
+}
+
+// ── Interactive spaced-repetition session ────────────────────────────────────
+
+export type SessionItemOrigin = "new" | "reinforcement" | "review";
+
+// A single quiz item in a session. Note the correct answer is NOT sent from the
+// server; grading happens server-side by itemId.
+export interface SessionItem {
+  itemId: string;
+  lessonId: string;
+  courseId: string;
+  type: "multiple_choice" | "true_false";
+  prompt: string;
+  options: string[];
+  origin: SessionItemOrigin;
+}
+
+export interface LessonSession {
+  lessonId: string;
+  courseId: string;
+  courseTitle: string;
+  courseColor: string;
+  lessonTitle: string;
+  crownLevel: number;
+  targetCorrect: number;
+  items: SessionItem[];
+}
+
+// One entry per session item, sent on completion. `firstTry` = answered
+// correctly on the first attempt, before the mistake recycler requeued it.
+export interface ItemResponse {
+  itemId: string;
+  firstTry: boolean;
+}
+
+export interface ReviewResult {
+  correct: number;
+  total: number;
+  xpEarned: number;
+  stats: LearnStats;
+  freezeEarned: boolean;
 }
 
 export interface CompleteResult {
@@ -171,6 +218,9 @@ export interface CompleteResult {
   total: number;
   passed: boolean;
   xpEarned: number;
+  xpBreakdown: { base: number; accuracyBonus: number; speedBonus: number };
+  crownLevel: number;
+  leveledUp: boolean;
   results: Array<{
     questionId: string;
     correct: boolean;
@@ -179,4 +229,5 @@ export interface CompleteResult {
   }>;
   stats: LearnStats;
   firstCompletion: boolean;
+  freezeEarned: boolean;
 }

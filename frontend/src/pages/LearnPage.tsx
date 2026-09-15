@@ -3,6 +3,23 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { CourseView, DailyLesson, LearnStats } from "../api/types";
 
+// Crown pips: a compact 0..5 level indicator shown on completed lesson nodes,
+// mirroring Duolingo's crown levels. Filled pips = current crown level.
+function CrownPips({ level, accent }: { level: number; accent: string }) {
+  return (
+    <span className="crown-pips" title={`Crown level ${level} of 5`} aria-label={`Crown level ${level}`}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <span
+          key={i}
+          className={`crown-pip ${i < level ? "filled" : ""}`}
+          style={i < level ? { background: accent } : undefined}
+        />
+      ))}
+      <span className="crown-emoji">👑</span>
+    </span>
+  );
+}
+
 export default function LearnPage() {
   const [courses, setCourses] = useState<CourseView[]>([]);
   const [stats, setStats] = useState<LearnStats | null>(null);
@@ -61,6 +78,45 @@ export default function LearnPage() {
           </div>
         </div>
       </div>
+
+      {/* Streak-freeze indicator: shows how many freezes protect the streak,
+          and flags when one was just used to save it. */}
+      {stats && (stats.streakFreezes > 0 || stats.freezeUsedDay) && (
+        <div className="freeze-strip mt-16">
+          <span className="freeze-icon">🧊</span>
+          {stats.freezeUsedDay ? (
+            <span>
+              A <strong>Streak Freeze</strong> saved your streak.{" "}
+              {stats.streakFreezes} left.
+            </span>
+          ) : (
+            <span>
+              <strong>{stats.streakFreezes}</strong> Streak Freeze
+              {stats.streakFreezes === 1 ? "" : "s"} banked — they auto-protect a missed day.
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Spaced-repetition review CTA: surfaces when items are due for review. */}
+      {stats && stats.overdueItems > 0 && (
+        <div className="card review-card mt-16">
+          <div>
+            <div className="row" style={{ gap: 8, marginBottom: 4 }}>
+              <span className="pill origin-review">Spaced review</span>
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>
+              🧠 {stats.overdueItems} item{stats.overdueItems === 1 ? "" : "s"} ready to review
+            </div>
+            <div className="muted">
+              Refresh concepts before you forget them — this is how the learning sticks.
+            </div>
+          </div>
+          <button className="btn" onClick={() => navigate("/learn/review")}>
+            Review now
+          </button>
+        </div>
+      )}
 
       {/* Daily plan card */}
       {daily ? (
@@ -169,6 +225,9 @@ function CourseCard({
                   {lesson.subtitle} · +{lesson.xp} XP
                 </span>
               </span>
+              {lesson.crownLevel > 0 && (
+                <CrownPips level={lesson.crownLevel} accent={accent} />
+              )}
             </button>
           );
         })}
