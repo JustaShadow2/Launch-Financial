@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { CourseView, DailyLesson, LearnStats, LessonView } from "../api/types";
@@ -10,11 +10,11 @@ const LEVEL_COLORS: Record<string, string> = {
   Advanced: "#ff7a3c",
 };
 
-// The three branches that fan out from the central hub, in display order.
-const BRANCHES: { level: string; label: string; icon: string }[] = [
-  { level: "Beginner", label: "Foundations", icon: "🌱" },
-  { level: "Intermediate", label: "Builder", icon: "📈" },
-  { level: "Advanced", label: "Mastery", icon: "🚀" },
+// The directions that fan out from the central hub, grouped by tier.
+const BRANCHES: { level: string; label: string; icon: string; dir: string }[] = [
+  { level: "Beginner", label: "Foundations", icon: "🌱", dir: "◀ West" },
+  { level: "Intermediate", label: "Builder", icon: "📈", dir: "▲ North" },
+  { level: "Advanced", label: "Mastery", icon: "🚀", dir: "▶ East" },
 ];
 
 export default function LearnPage() {
@@ -22,7 +22,7 @@ export default function LearnPage() {
   const [stats, setStats] = useState<LearnStats | null>(null);
   const [daily, setDaily] = useState<DailyLesson | null>(null);
   const [loading, setLoading] = useState(true);
-  const [openCourse, setOpenCourse] = useState<string | null>(null);
+  const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,6 +39,11 @@ export default function LearnPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const activeCourse = useMemo(
+    () => courses.find((c) => c.id === activeCourseId) ?? null,
+    [courses, activeCourseId]
+  );
 
   if (loading) return <div className="loading">Loading your academy…</div>;
 
@@ -98,125 +103,129 @@ export default function LearnPage() {
           </button>
         )}
 
-        {/* ── The skill tree: a central hub with branches fanning out. ── */}
-        <div className="tree">
-          {/* Central hub. */}
-          <div className="tree-hub">
-            <div className="hub-core" title="Your investing journey starts here">
-              <span className="hub-core-icon">🧭</span>
-              <span className="hub-core-pct">{totalPct}%</span>
-            </div>
-            <div className="hub-label">Start here</div>
-            {daily && (
-              <button className="hub-continue" onClick={() => openLesson(daily.lessonId)}>
-                {stats?.dailyGoalMet ? "Keep going" : "Continue"}: {daily.title}
-              </button>
-            )}
+        {/* ── Central hub ── */}
+        <div className="hub">
+          <div className="hub-core" title="Your investing journey">
+            <span className="hub-core-icon">🧭</span>
+            <span className="hub-core-pct">{totalPct}%</span>
           </div>
+          <div className="hub-label">
+            {activeCourse ? "Choose a direction" : "Pick a path to begin"}
+          </div>
+          {daily && !activeCourse && (
+            <button className="hub-continue" onClick={() => openLesson(daily.lessonId)}>
+              {stats?.dailyGoalMet ? "Keep going" : "Continue"}: {daily.title}
+            </button>
+          )}
+        </div>
 
-          {/* Branches — one column per difficulty tier, fanning outward. */}
-          <div className="tree-branches">
-            {BRANCHES.map((branch) => {
-              const branchCourses = courses.filter((c) => c.level === branch.level);
-              if (branchCourses.length === 0) return null;
-              const accent = LEVEL_COLORS[branch.level];
-              return (
-                <div className="branch" key={branch.level}>
-                  <div className="branch-header" style={{ color: accent }}>
-                    <span className="branch-icon">{branch.icon}</span>
-                    <div>
-                      <div className="branch-label">{branch.label}</div>
-                      <div className="branch-level">{branch.level}</div>
-                    </div>
-                  </div>
-                  <div className="branch-stem" style={{ background: accent }} />
-                  <div className="branch-nodes">
-                    {branchCourses.map((course) => (
-                      <CourseNode
-                        key={course.id}
-                        course={course}
-                        accent={accent}
-                        expanded={openCourse === course.id}
-                        onToggle={() =>
-                          setOpenCourse((cur) => (cur === course.id ? null : course.id))
-                        }
-                        onOpenLesson={openLesson}
-                      />
-                    ))}
+        {/* ── Direction chooser: the branches you can head toward ── */}
+        <div className="directions">
+          {BRANCHES.map((branch) => {
+            const branchCourses = courses.filter((c) => c.level === branch.level);
+            if (branchCourses.length === 0) return null;
+            const accent = LEVEL_COLORS[branch.level];
+            return (
+              <div className="direction" key={branch.level}>
+                <div className="direction-header" style={{ color: accent }}>
+                  <span className="direction-icon">{branch.icon}</span>
+                  <div>
+                    <div className="direction-label">{branch.label}</div>
+                    <div className="direction-dir">{branch.dir}</div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+                <div className="direction-courses">
+                  {branchCourses.map((course) => {
+                    const complete = course.completedLessons >= course.totalLessons;
+                    const active = course.id === activeCourseId;
+                    return (
+                      <button
+                        key={course.id}
+                        className={`direction-chip ${active ? "active" : ""}`}
+                        style={
+                          active
+                            ? { borderColor: accent, background: `${accent}22` }
+                            : undefined
+                        }
+                        onClick={() =>
+                          setActiveCourseId((cur) => (cur === course.id ? null : course.id))
+                        }
+                      >
+                        <span className="direction-chip-icon">
+                          {complete ? "★" : course.icon}
+                        </span>
+                        <span className="direction-chip-text">
+                          <span className="direction-chip-title">{course.title}</span>
+                          <span className="direction-chip-sub">
+                            {course.completedLessons}/{course.totalLessons} · {course.percent}%
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
+
+        {/* ── The chosen path: a winding gamified trail of that topic's lessons ── */}
+        {activeCourse && (
+          <TopicPath
+            course={activeCourse}
+            accent={LEVEL_COLORS[activeCourse.level] ?? activeCourse.color}
+            onOpenLesson={openLesson}
+          />
+        )}
       </div>
     </div>
   );
 }
 
-function CourseNode({
+// Serpentine offsets so the path winds left → center → right → center …
+const OFFSETS = [0, 0.34, 0.5, 0.34, 0, -0.34, -0.5, -0.34];
+
+function TopicPath({
   course,
   accent,
-  expanded,
-  onToggle,
   onOpenLesson,
 }: {
   course: CourseView;
   accent: string;
-  expanded: boolean;
-  onToggle: () => void;
   onOpenLesson: (id: string) => void;
 }) {
-  const done = course.completedLessons;
-  const total = course.totalLessons;
-  const complete = done >= total && total > 0;
-  const started = done > 0;
-
   return (
-    <div className={`course-node-wrap ${expanded ? "open" : ""}`}>
-      <button
-        className={`course-node ${complete ? "complete" : started ? "started" : "new"}`}
-        onClick={onToggle}
-        style={
-          started || complete
-            ? { borderColor: accent, boxShadow: `0 5px 0 ${shade(accent)}` }
-            : undefined
-        }
-      >
-        <span
-          className="course-node-badge"
-          style={started || complete ? { background: accent } : undefined}
-        >
-          {complete ? "★" : course.icon}
-        </span>
-        <span className="course-node-text">
-          <span className="course-node-title">{course.title}</span>
-          <span className="course-node-sub">
-            {done}/{total} lessons · {course.percent}%
-          </span>
-        </span>
-        <span className="course-node-chevron">{expanded ? "▾" : "▸"}</span>
-      </button>
-
-      {/* Expanded: this course's lessons as a mini winding path. */}
-      {expanded && (
-        <div className="course-lessons">
-          {course.lessons.map((lesson, i) => (
-            <LessonPill
-              key={lesson.id}
-              lesson={lesson}
-              index={i}
-              accent={accent}
-              onOpen={() => onOpenLesson(lesson.id)}
-            />
-          ))}
+    <section className="topic-path">
+      <div className="topic-path-header" style={{ background: accent }}>
+        <span className="topic-path-icon">{course.icon}</span>
+        <div>
+          <div className="topic-path-title">{course.title}</div>
+          <div className="topic-path-sub">
+            {course.completedLessons}/{course.totalLessons} lessons · {course.percent}%
+          </div>
         </div>
-      )}
-    </div>
+      </div>
+
+      <div className="topic-trail">
+        {course.lessons.map((lesson, i) => (
+          <PathNode
+            key={lesson.id}
+            lesson={lesson}
+            index={i}
+            accent={accent}
+            onOpen={() => onOpenLesson(lesson.id)}
+          />
+        ))}
+        <div className="topic-trail-goal">
+          <span className="topic-trail-goal-icon">🏆</span>
+          <span>Finish the path</span>
+        </div>
+      </div>
+    </section>
   );
 }
 
-function LessonPill({
+function PathNode({
   lesson,
   index,
   accent,
@@ -230,28 +239,46 @@ function LessonPill({
   const locked = lesson.status === "locked";
   const completed = lesson.status === "completed";
   const current = lesson.status === "current";
+  const offset = OFFSETS[index % OFFSETS.length];
+
   return (
-    <button
-      className={`lesson-pill ${lesson.status}`}
-      disabled={locked}
-      onClick={onOpen}
-      title={`${lesson.title} — ${lesson.subtitle}`}
-      style={completed || current ? { borderColor: accent } : undefined}
-    >
-      <span
-        className="lesson-pill-badge"
-        style={completed ? { background: accent } : undefined}
+    <div className="path-row" style={{ transform: `translateX(${offset * 150}px)` }}>
+      {current && <div className="path-start-bubble">START</div>}
+      <button
+        className={`path-node ${lesson.status}`}
+        disabled={locked}
+        onClick={onOpen}
+        title={`${lesson.title} — ${lesson.subtitle}`}
+        style={
+          completed || current
+            ? { background: accent, boxShadow: `0 6px 0 ${shade(accent)}` }
+            : undefined
+        }
       >
-        {completed ? "✓" : locked ? "🔒" : index + 1}
-      </span>
-      <span className="lesson-pill-text">
-        <span className="lesson-pill-title">{lesson.title}</span>
-        <span className="lesson-pill-sub">
-          {completed ? `Complete · 👑 ${lesson.crownLevel}` : `${lesson.subtitle} · +${lesson.xp} XP`}
+        <span className="path-node-face">
+          {completed ? "★" : locked ? "🔒" : index + 1}
         </span>
-      </span>
-      {current && <span className="lesson-pill-start">START</span>}
-    </button>
+      </button>
+
+      {completed && lesson.crownLevel > 0 && (
+        <div className="path-crowns" aria-label={`Crown level ${lesson.crownLevel}`}>
+          {Array.from({ length: 5 }).map((_, p) => (
+            <span
+              key={p}
+              className={`path-crown-pip ${p < lesson.crownLevel ? "filled" : ""}`}
+              style={p < lesson.crownLevel ? { background: accent } : undefined}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className={`path-label ${locked ? "muted" : ""}`}>
+        <span className="path-label-title">{lesson.title}</span>
+        <span className="path-label-sub">
+          {completed ? `Complete · 👑 ${lesson.crownLevel}` : `+${lesson.xp} XP`}
+        </span>
+      </div>
+    </div>
   );
 }
 

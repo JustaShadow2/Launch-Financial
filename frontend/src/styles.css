@@ -602,22 +602,15 @@ select:focus {
   white-space: nowrap;
 }
 
-/* ── Skill tree: central hub + branches fanning out ──────────────────────── */
-.tree {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: 8px;
-}
+/* ── Hub → directions → chosen path ──────────────────────────────────────── */
 
 /* Central starting hub. */
-.tree-hub {
+.hub {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  position: relative;
-  z-index: 2;
+  padding-top: 8px;
 }
 .hub-core {
   width: 120px;
@@ -667,18 +660,18 @@ select:focus {
   box-shadow: 0 2px 0 var(--accent-dim);
 }
 
-/* The branches fan out below the hub — a "trunk" line connects down into them. */
-.tree-branches {
+/* ── Direction chooser: the ways you can head from the hub ────────────────── */
+.directions {
   position: relative;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  gap: 18px;
   width: 100%;
   margin-top: 28px;
   padding-top: 28px;
 }
-/* Trunk line from the hub down into the branch row. */
-.tree-branches::before {
+/* Trunk line from the hub down into the direction row. */
+.directions::before {
   content: "";
   position: absolute;
   top: -28px;
@@ -688,182 +681,235 @@ select:focus {
   background: var(--border);
   transform: translateX(-50%);
 }
-
-.branch {
+.direction {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  gap: 12px;
 }
-.branch-header {
+.direction-header {
   display: flex;
   align-items: center;
   gap: 10px;
   font-weight: 800;
+  justify-content: center;
 }
-.branch-icon {
-  font-size: 26px;
+.direction-icon {
+  font-size: 24px;
 }
-.branch-label {
-  font-size: 16px;
+.direction-label {
+  font-size: 15px;
   line-height: 1.1;
 }
-.branch-level {
-  font-size: 11px;
-  letter-spacing: 0.06em;
+.direction-dir {
+  font-size: 10px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   opacity: 0.7;
 }
-.branch-stem {
-  width: 3px;
-  height: 22px;
-  margin: 8px 0 4px;
-  border-radius: 2px;
-  opacity: 0.5;
-}
-.branch-nodes {
+.direction-courses {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  width: 100%;
+  gap: 10px;
 }
 
-/* A course = a selectable node on a branch. */
-.course-node-wrap {
-  width: 100%;
-}
-.course-node {
+/* A course = a pickable "direction" chip. */
+.direction-chip {
   display: flex;
   align-items: center;
-  gap: 12px;
-  width: 100%;
+  gap: 10px;
   text-align: left;
-  padding: 12px 14px;
-  border-radius: var(--radius);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   border: 2px solid var(--border);
   color: var(--text);
-  transition: transform 0.1s ease, filter 0.15s ease;
+  transition: transform 0.1s ease, filter 0.15s ease, background 0.15s ease;
 }
-.course-node:hover {
-  filter: brightness(1.05);
+.direction-chip:hover {
+  filter: brightness(1.06);
 }
-.course-node:active {
-  transform: translateY(2px);
+.direction-chip:active {
+  transform: translateY(1px);
 }
-.course-node.new {
-  opacity: 0.9;
+.direction-chip.active {
+  box-shadow: var(--shadow-sm);
 }
-.course-node-badge {
-  width: 44px;
-  height: 44px;
+.direction-chip-icon {
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 18px;
   background: var(--surface-2);
-  color: #04140d;
   flex-shrink: 0;
 }
-.course-node-text {
+.direction-chip-text {
   display: flex;
   flex-direction: column;
-  flex: 1;
   min-width: 0;
 }
-.course-node-title {
+.direction-chip-title {
   font-weight: 700;
-  font-size: 15px;
+  font-size: 14px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.course-node-sub {
+.direction-chip-sub {
   font-size: 12px;
   color: var(--text-dim);
 }
-.course-node-chevron {
-  color: var(--text-dim);
-  font-size: 13px;
-  flex-shrink: 0;
-}
 
-/* Expanded course: its lessons as a stack of pills. */
-.course-lessons {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 6px 4px 16px;
-  margin-left: 20px;
-  border-left: 2px dashed var(--border);
+/* ── The chosen topic path: winding gamified trail of lessons ─────────────── */
+.topic-path {
+  margin-top: 28px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-soft);
 }
-.lesson-pill {
+.topic-path-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  text-align: left;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  transition: transform 0.1s ease, background 0.15s ease;
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  color: #04140d;
+  box-shadow: var(--shadow-sm);
+  margin-top: 20px;
 }
-.lesson-pill:not(:disabled):hover {
-  background: var(--surface-2);
-  transform: translateX(2px);
+.topic-path-icon {
+  font-size: 28px;
 }
-.lesson-pill.locked {
-  opacity: 0.5;
-  cursor: not-allowed;
+.topic-path-title {
+  font-size: 20px;
+  font-weight: 800;
 }
-.lesson-pill.current {
-  border-width: 2px;
+.topic-path-sub {
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.8;
 }
-.lesson-pill-badge {
-  width: 30px;
-  height: 30px;
+
+.topic-trail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+  padding: 40px 0 10px;
+}
+.topic-trail-goal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-dim);
+  font-weight: 700;
+  font-size: 13px;
+  margin-top: 10px;
+}
+.topic-trail-goal-icon {
+  font-size: 34px;
+}
+
+/* One node + its label, offset horizontally to create the serpentine trail. */
+.path-row {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform 0.25s ease;
+}
+.path-node {
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
+  border: none;
+  background: var(--surface-2);
+  color: var(--text);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
-  font-size: 14px;
-  background: var(--surface-2);
-  color: var(--text);
-  flex-shrink: 0;
+  box-shadow: 0 6px 0 var(--border);
+  transition: transform 0.1s ease, filter 0.15s ease;
 }
-.lesson-pill.completed .lesson-pill-badge {
+.path-node:not(:disabled):hover {
+  filter: brightness(1.06);
+}
+.path-node:not(:disabled):active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 var(--border) !important;
+}
+.path-node-face {
+  font-size: 28px;
+  font-weight: 800;
+}
+.path-node.completed .path-node-face,
+.path-node.current .path-node-face {
   color: #04140d;
 }
-.lesson-pill-text {
+.path-node.locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3);
+}
+.path-node.current {
+  animation: node-bounce 1.8s ease-in-out infinite;
+}
+@keyframes node-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .path-node.current {
+    animation: none;
+  }
+}
+.path-start-bubble {
+  position: absolute;
+  top: -30px;
+  background: var(--surface);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+  animation: node-bounce 1.8s ease-in-out infinite;
+}
+.path-crowns {
+  display: flex;
+  gap: 3px;
+  margin-top: 8px;
+}
+.path-crown-pip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.path-label {
+  margin-top: 8px;
+  text-align: center;
+  max-width: 220px;
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-width: 0;
+  gap: 1px;
 }
-.lesson-pill-title {
-  font-weight: 600;
+.path-label-title {
+  font-weight: 700;
   font-size: 14px;
 }
-.lesson-pill-sub {
+.path-label-sub {
   font-size: 12px;
   color: var(--text-dim);
 }
-.lesson-pill-start {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-pill);
-  padding: 3px 8px;
-  flex-shrink: 0;
-}
 
-/* Stack the branches vertically on narrow screens. */
+/* Stack directions vertically on narrow screens. */
 @media (max-width: 760px) {
-  .tree-branches {
+  .directions {
     grid-template-columns: 1fr;
   }
 }
