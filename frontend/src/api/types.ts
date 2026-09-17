@@ -113,6 +113,13 @@ export interface CourseView {
   lessons: LessonView[];
 }
 
+export interface Skill {
+  key: string;
+  label: string;
+  icon: string;
+  percent: number;
+}
+
 export interface LearnStats {
   xp: number;
   currentStreak: number;
@@ -124,6 +131,8 @@ export interface LearnStats {
   streakFreezes: number;
   freezeUsedDay: string | null;
   overdueItems: number;
+  skills: Skill[];
+  level: number;
 }
 
 export interface DailyLesson {
@@ -175,16 +184,53 @@ export interface LessonContent {
 
 export type SessionItemOrigin = "new" | "reinforcement" | "review";
 
-// A single quiz item in a session. Note the correct answer is NOT sent from the
-// server; grading happens server-side by itemId.
+export type ItemType =
+  | "multiple_choice"
+  | "true_false"
+  | "decision"
+  | "allocation"
+  | "market_event";
+
+export interface AllocBucket {
+  key: string;
+  label: string;
+  icon: string;
+  target: number;
+}
+
+// A single item in a session. Correct answers for choice-style items are NOT
+// sent; grading happens server-side via POST /learn/grade. Fields present
+// depend on `type`.
 export interface SessionItem {
   itemId: string;
   lessonId: string;
   courseId: string;
-  type: "multiple_choice" | "true_false";
+  type: ItemType;
   prompt: string;
-  options: string[];
   origin: SessionItemOrigin;
+  // multiple_choice / true_false
+  options?: string[];
+  // decision
+  scenario?: string;
+  choices?: { label: string; rationale: string }[];
+  // allocation
+  amount?: number;
+  buckets?: AllocBucket[];
+  tolerance?: number;
+  // market_event
+  event?: string;
+  eventOptions?: { label: string; outcome: string }[];
+}
+
+// The answer a client submits for grading.
+export type ItemAnswer =
+  | { kind: "choice"; index: number }
+  | { kind: "allocation"; weights: Record<string, number> };
+
+export interface GradeResult {
+  correct: boolean;
+  explanation: string;
+  correctIndex?: number;
 }
 
 export interface LessonSession {
@@ -230,4 +276,37 @@ export interface CompleteResult {
   stats: LearnStats;
   firstCompletion: boolean;
   freezeEarned: boolean;
+}
+
+// ── Money Quests ─────────────────────────────────────────────────────────────
+
+export interface QuestStepView {
+  lessonId: string;
+  title: string;
+  completed: boolean;
+  current: boolean;
+}
+
+export interface QuestView {
+  id: string;
+  title: string;
+  tagline: string;
+  icon: string;
+  color: string;
+  badge: string;
+  steps: QuestStepView[];
+  completedSteps: number;
+  totalSteps: number;
+  percent: number;
+  complete: boolean;
+}
+
+// ── Daily Money Challenge ────────────────────────────────────────────────────
+
+export interface DailyChallenge {
+  id: string;
+  question: string;
+  options: { label: string; result: string }[];
+  best: number;
+  takeaway: string;
 }

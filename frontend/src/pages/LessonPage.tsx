@@ -8,6 +8,7 @@ import {
   LessonSession,
   SessionItem,
 } from "../api/types";
+import { QuizCard } from "../components/QuizCard";
 
 type Phase = "slides" | "quiz" | "results";
 
@@ -32,8 +33,6 @@ export default function LessonPage() {
 
   // Quiz (session-driven with a mistake-recycler queue)
   const [queue, setQueue] = useState<QueueEntry[]>([]);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [locked, setLocked] = useState(false);
   const [correctCount, setCorrectCount] = useState(0); // items cleared (answered right)
   // First-try outcomes per itemId (recorded once, on first appearance).
   const firstTry = useRef<Map<string, boolean>>(new Map());
@@ -48,8 +47,6 @@ export default function LessonPage() {
   useEffect(() => {
     setPhase("slides");
     setSlideIndex(0);
-    setSelected(null);
-    setLocked(false);
     setCorrectCount(0);
     setQueue([]);
     setResult(null);
@@ -171,11 +168,6 @@ export default function LessonPage() {
       }
     }
 
-    function check() {
-      if (selected === null) return;
-      setLocked(true);
-    }
-
     function advance(wasCorrect: boolean) {
       const entry = queue[0];
       const item = entry.item;
@@ -184,9 +176,6 @@ export default function LessonPage() {
       if (!firstTry.current.has(item.itemId)) {
         firstTry.current.set(item.itemId, wasCorrect);
       }
-
-      setSelected(null);
-      setLocked(false);
 
       if (wasCorrect) {
         // Clear this item from the queue.
@@ -209,18 +198,15 @@ export default function LessonPage() {
 
     return (
       <QuizCard
-        session={session}
+        key={current.itemId + "-" + queue[0].attempt}
         item={current}
         accent={accent}
-        selected={selected}
-        locked={locked}
-        onSelect={setSelected}
-        onCheck={check}
+        crownLevel={session.crownLevel}
         onNext={advance}
         submitting={submitting}
         progress={progress}
         remaining={queue.length}
-        lessonTitle={lesson.title}
+        headerTitle={lesson.title}
         onExit={() => navigate("/learn")}
       />
     );
@@ -228,13 +214,29 @@ export default function LessonPage() {
 
   // ── Results phase ──────────────────────────────────────────────────────────
   if (phase === "results" && result) {
+    const accuracy = result.total > 0 ? result.correct / result.total : 0;
+    const stars = accuracy >= 1 ? 3 : accuracy >= 0.8 ? 2 : 1;
     return (
       <div className="lesson-wrap">
-        <div className="card results-card">
-          <div style={{ fontSize: 48 }}>{result.passed ? "🎉" : "💪"}</div>
-          <h2 style={{ margin: "8px 0" }}>
-            {result.passed ? "Lesson complete!" : "Almost there"}
+        <div className="card results-card results-celebrate">
+          <div className="results-mascot">{result.passed ? "🐿️🎉" : "🐿️💪"}</div>
+          <div className="results-eyebrow">
+            {result.passed ? "MISSION COMPLETE" : "KEEP GOING"}
+          </div>
+          <h2 style={{ margin: "6px 0" }}>
+            {result.passed ? lesson.title : "Almost there"}
           </h2>
+
+          {result.passed && (
+            <div className="results-stars" aria-label={`${stars} of 3 stars`}>
+              {[0, 1, 2].map((s) => (
+                <span key={s} className={`results-star ${s < stars ? "on" : ""}`}>
+                  ★
+                </span>
+              ))}
+            </div>
+          )}
+
           <div className="muted">
             You got {result.correct} of {result.total} right on the first try.
           </div>
@@ -293,8 +295,6 @@ export default function LessonPage() {
                 onClick={() => {
                   setPhase("slides");
                   setSlideIndex(0);
-                  setSelected(null);
-                  setLocked(false);
                   setCorrectCount(0);
                   setQueue([]);
                   firstTry.current = new Map();
@@ -317,156 +317,6 @@ export default function LessonPage() {
   }
 
   return <div className="loading">Loading…</div>;
-}
-
-// The correct-answer index for the current item is not sent by the server. To
-// give instant right/wrong feedback while keeping grading authoritative on the
-// backend, the QuizCard fetches the answer key lazily per item from the lesson
-// content it already has. We stash the last check's correctness in a ref shared
-// with the parent so the recycler can act on it.
-function QuizCard({
-  session,
-  item,
-  accent,
-  selected,
-  locked,
-  onSelect,
-  onCheck,
-  onNext,
-  submitting,
-  progress,
-  remaining,
-  lessonTitle,
-  onExit,
-}: {
-  session: LessonSession;
-  item: SessionItem;
-  accent: string;
-  selected: number | null;
-  locked: boolean;
-  onSelect: (i: number) => void;
-  onCheck: () => void;
-  onNext: (wasCorrect: boolean) => void;
-  submitting: boolean;
-  progress: number;
-  remaining: number;
-  lessonTitle: string;
-  onExit: () => void;
-}) {
-  // Fetch the answer key for THIS item on demand. The lesson content endpoint
-  // returns questions with answers for the owning lesson; for review items from
-  // other lessons we fetch that lesson's content once and cache it.
-  const [answerIndex, setAnswerIndex] = useState<number | null>(null);
-  const [explanation, setExplanation] = useState<string>("");
-  const answerCache = useRef<Map<string, { answer: number; explanation: string }>>(new Map());
-
-  useEffect(() => {
-    let cancelled = false;
-    setAnswerIndex(null);
-    setExplanation("");
-
-    const cached = answerCache.current.get(item.itemId);
-    if (cached) {
-      setAnswerIndex(cached.answer);
-      setExplanation(cached.explanation);
-      return;
-    }
-    api
-      .get<LessonContent>(`/learn/lesson/${item.lessonId}`)
-      .then((c) => {
-        if (cancelled) return;
-        for (const q of c.lesson.questions) {
-          answerCache.current.set(q.id, { answer: q.answer, explanation: q.explanation });
-        }
-        const found = c.lesson.questions.find((q) => q.id === item.itemId);
-        if (found) {
-          setAnswerIndex(found.answer);
-          setExplanation(found.explanation);
-        }
-      })
-      .catch(() => {
-        /* If we can't fetch the key, fall back to treating any answer as gradable server-side. */
-      });
-  }, [item.itemId, item.lessonId]);
-
-  const isCorrect = locked && answerIndex !== null && selected === answerIndex;
-
-  const originLabel =
-    item.origin === "review"
-      ? "Review"
-      : item.origin === "reinforcement"
-      ? "Practice"
-      : null;
-
-  return (
-    <div className="lesson-wrap">
-      <LessonHeader title={lessonTitle} onExit={onExit} progress={progress} accent={accent} />
-      <div className="card">
-        <div className="row spread" style={{ alignItems: "center" }}>
-          <div className="muted" style={{ fontSize: 13 }}>
-            {remaining} to go
-            {session.crownLevel > 0 && <span> · 👑 {session.crownLevel}</span>}
-          </div>
-          {originLabel && <span className={`pill origin-${item.origin}`}>{originLabel}</span>}
-        </div>
-        <h2 style={{ marginTop: 6 }}>{item.prompt}</h2>
-
-        <div className="quiz-options mt-16">
-          {item.options.map((opt, i) => {
-            let cls = "quiz-option";
-            if (locked && answerIndex !== null) {
-              if (i === answerIndex) cls += " correct";
-              else if (i === selected) cls += " wrong";
-            } else if (i === selected) {
-              cls += " selected";
-            }
-            return (
-              <button
-                key={i}
-                className={cls}
-                disabled={locked}
-                onClick={() => onSelect(i)}
-              >
-                {opt}
-              </button>
-            );
-          })}
-        </div>
-
-        {locked && (
-          <div className={`explanation ${isCorrect ? "good" : "bad"}`}>
-            <strong>{isCorrect ? "Correct!" : "Not quite — we'll ask this again."}</strong>{" "}
-            {explanation}
-          </div>
-        )}
-      </div>
-
-      <div className="row spread mt-16">
-        <button className="btn btn-ghost" onClick={onExit}>
-          Exit
-        </button>
-        {!locked ? (
-          <button
-            className="btn"
-            style={{ background: accent }}
-            disabled={selected === null || answerIndex === null}
-            onClick={onCheck}
-          >
-            {answerIndex === null ? "Loading…" : "Check"}
-          </button>
-        ) : (
-          <button
-            className="btn"
-            style={{ background: accent }}
-            disabled={submitting}
-            onClick={() => onNext(isCorrect)}
-          >
-            {submitting ? "Finishing…" : "Continue"}
-          </button>
-        )}
-      </div>
-    </div>
-  );
 }
 
 function LessonHeader({

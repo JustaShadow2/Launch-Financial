@@ -5,10 +5,17 @@ import {
   Course,
   Lesson,
   QuizQuestion,
+  ItemAnswer,
+  GradeResult,
   TOTAL_LESSONS,
   findLesson,
+  gradeQuestion,
+  correctIndexOf,
+  explanationOf,
 } from "../data/learningContent";
 import { countOverdue, recordReviews, ReviewOutcome } from "./spacedRepetition";
+import { buildQuestViews } from "../data/quests";
+import { challengeForDay } from "../data/dailyChallenges";
 import {
   buildLessonSession,
   buildReviewSession,
@@ -64,6 +71,13 @@ export interface CourseView {
   lessons: LessonView[];
 }
 
+export interface Skill {
+  key: string;
+  label: string;
+  icon: string;
+  percent: number; // 0..100 mastery across this skill's courses
+}
+
 export interface LearnStats {
   xp: number;
   currentStreak: number;
@@ -75,6 +89,33 @@ export interface LearnStats {
   streakFreezes: number;
   freezeUsedDay: string | null; // set when a freeze auto-saved the streak
   overdueItems: number; // items due for spaced-repetition review
+  skills: Skill[]; // mastery bars across broad topic areas
+  level: number; // derived player level from XP
+}
+
+// Broad skill areas, each spanning a set of course ids. Mastery is the share of
+// those courses' lessons the user has completed.
+const SKILL_GROUPS: { key: string; label: string; icon: string; courseIds: string[] }[] = [
+  { key: "basics", label: "Money Basics", icon: "💵", courseIds: ["getting-started", "financial-literacy"] },
+  { key: "investing", label: "Investing", icon: "📈", courseIds: ["building-portfolio", "stocks-deep-dive", "funds-and-income", "investing-strategies"] },
+  { key: "markets", label: "Markets", icon: "🎢", courseIds: ["risk-and-markets", "market-mechanics", "macro-economy", "behavioral-finance"] },
+  { key: "analysis", label: "Analysis", icon: "🔍", courseIds: ["reading-companies", "deeper-fundamentals"] },
+  { key: "advanced", label: "Advanced", icon: "🚀", courseIds: ["options-from-scratch", "advanced-options", "margin-and-shorting", "crypto-alternatives"] },
+  { key: "planning", label: "Planning & Tax", icon: "🗺️", courseIds: ["taxes-optimization", "planning-pitfalls", "account-tax-strategy", "managed-thematic"] },
+];
+
+// XP needed grows each level; simple curve: level n starts at 100*n*(n-1)/2 ... .
+function levelForXp(xp: number): number {
+  // Each level costs 100 more than the last: L1@0, L2@100, L3@300, L4@600, …
+  let level = 1;
+  let need = 100;
+  let acc = 0;
+  while (xp >= acc + need) {
+    acc += need;
+    level++;
+    need += 100;
+  }
+  return level;
 }
 
 // ── Progress assembly ────────────────────────────────────────────────────────
@@ -150,11 +191,32 @@ export async function getStats(userId: string): Promise<LearnStats> {
   // Run the lazy "daily validation loop" first — since there's no cron, we
   // evaluate the streak/freeze state whenever stats are read.
   const user = await validateStreak(userId);
-  const completedLessons = await prisma.lessonProgress.count({ where: { userId } });
+  const completed = await getCompletedSet(userId);
+  const completedLessons = completed.size;
   const overdueItems = await countOverdue(userId);
   const today = dayString();
+
+  // Skill mastery: share of each group's course lessons completed.
+  const skills: Skill[] = SKILL_GROUPS.map((g) => {
+    let total = 0;
+    let done = 0;
+    for (const cid of g.courseIds) {
+      const course = COURSE_MAP[cid];
+      if (!course) continue;
+      total += course.lessons.length;
+      done += course.lessons.filter((l) => completed.has(l.id)).length;
+    }
+    return {
+      key: g.key,
+      label: g.label,
+      icon: g.icon,
+      percent: total ? Math.round((done / total) * 100) : 0,
+    };
+  });
+
+  const xp = user?.xp ?? 0;
   return {
-    xp: user?.xp ?? 0,
+    xp,
     currentStreak: user?.currentStreak ?? 0,
     longestStreak: user?.longestStreak ?? 0,
     completedLessons,
@@ -164,7 +226,14 @@ export async function getStats(userId: string): Promise<LearnStats> {
     streakFreezes: user?.streakFreezes ?? 0,
     freezeUsedDay: user?.freezeUsedDay ?? null,
     overdueItems,
+    skills,
+    level: levelForXp(xp),
   };
+}
+
+/** Today's daily money challenge (rotates by calendar day). */
+export function getDailyChallenge() {
+  return challengeForDay(dayString());
 }
 
 /**
@@ -310,11 +379,31 @@ export async function getLessonSession(userId: string, lessonId: string) {
   return session;
 }
 
+/** Money Quests with per-user progress derived from completed lessons. */
+export async function getQuests(userId: string) {
+  const completed = await getCompletedSet(userId);
+  const ids = new Set(completed.keys());
+  return buildQuestViews(ids);
+}
+
 /** Build a curriculum-wide review session of the user's most overdue items. */
 export async function getReviewSession(userId: string) {
   const session = await buildReviewSession(userId);
   if (!session) throw new LearnError("Nothing to review right now — great job!", 404);
   return session;
+}
+
+/**
+ * Grade a single item's answer authoritatively on the server. The client calls
+ * this for instant right/wrong feedback during a session (needed for the
+ * mistake recycler), so the correct answer never has to be shipped to the
+ * client for the interactive types. Returns correctness + explanation (+ the
+ * correct index for choice-style reveal).
+ */
+export function gradeItem(itemId: string, answer: ItemAnswer | undefined): GradeResult {
+  const q = findQuestionById(itemId);
+  if (!q) throw new LearnError("Item not found", 404);
+  return gradeQuestion(q, answer);
 }
 
 export interface ReviewResult {
@@ -530,8 +619,8 @@ export async function completeLesson({
     results.push({
       questionId: q.id,
       correct,
-      correctAnswer: q.answer,
-      explanation: q.explanation,
+      correctAnswer: correctIndexOf(q),
+      explanation: explanationOf(q),
     });
   }
 

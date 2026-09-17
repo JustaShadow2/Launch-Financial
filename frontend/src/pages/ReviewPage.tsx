@@ -1,18 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client";
-import {
-  ItemResponse,
-  LessonContent,
-  LessonSession,
-  ReviewResult,
-  SessionItem,
-} from "../api/types";
+import { ItemResponse, LessonSession, ReviewResult, SessionItem } from "../api/types";
+import { QuizCard } from "../components/QuizCard";
 
 /**
- * Spaced-repetition review session. Reuses the mistake-recycler flow from the
- * lesson quiz, but pulls the user's most overdue items across the whole
- * curriculum (GET /learn/review/session) and submits to /learn/review/complete.
+ * Spaced-repetition review session. Reuses the shared QuizCard + mistake
+ * recycler, pulling the user's most overdue items across the whole curriculum
+ * (GET /learn/review/session) and submitting to /learn/review/complete.
  */
 export default function ReviewPage() {
   const navigate = useNavigate();
@@ -20,9 +15,7 @@ export default function ReviewPage() {
 
   const [session, setSession] = useState<LessonSession | null>(null);
   const [loadError, setLoadError] = useState("");
-  const [queue, setQueue] = useState<{ item: SessionItem }[]>([]);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [locked, setLocked] = useState(false);
+  const [queue, setQueue] = useState<{ item: SessionItem; attempt: number }[]>([]);
   const [correctCount, setCorrectCount] = useState(0);
   const [result, setResult] = useState<ReviewResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -30,17 +23,12 @@ export default function ReviewPage() {
   const firstTry = useRef<Map<string, boolean>>(new Map());
   const totalItems = useRef(0);
 
-  // Answer-key cache: fetched per owning lesson for instant feedback.
-  const [answerIndex, setAnswerIndex] = useState<number | null>(null);
-  const [explanation, setExplanation] = useState("");
-  const answerCache = useRef<Map<string, { answer: number; explanation: string }>>(new Map());
-
   useEffect(() => {
     api
       .get<LessonSession>("/learn/review/session")
       .then((s) => {
         setSession(s);
-        setQueue(s.items.map((item) => ({ item })));
+        setQueue(s.items.map((item) => ({ item, attempt: 0 })));
         totalItems.current = s.items.length;
       })
       .catch((e) =>
@@ -49,38 +37,6 @@ export default function ReviewPage() {
   }, []);
 
   const current = queue[0]?.item;
-
-  // Load the answer key for the current item (cached per lesson).
-  useEffect(() => {
-    if (!current) return;
-    let cancelled = false;
-    setAnswerIndex(null);
-    setExplanation("");
-
-    const cached = answerCache.current.get(current.itemId);
-    if (cached) {
-      setAnswerIndex(cached.answer);
-      setExplanation(cached.explanation);
-      return;
-    }
-    api
-      .get<LessonContent>(`/learn/lesson/${current.lessonId}`)
-      .then((c) => {
-        if (cancelled) return;
-        for (const q of c.lesson.questions) {
-          answerCache.current.set(q.id, { answer: q.answer, explanation: q.explanation });
-        }
-        const found = c.lesson.questions.find((q) => q.id === current.itemId);
-        if (found) {
-          setAnswerIndex(found.answer);
-          setExplanation(found.explanation);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [current]);
 
   if (loadError) {
     return (
@@ -94,7 +50,6 @@ export default function ReviewPage() {
   }
   if (!session) return <div className="loading">Building your review…</div>;
 
-  // ── Results ────────────────────────────────────────────────────────────────
   if (result) {
     return (
       <div className="lesson-wrap">
@@ -135,7 +90,6 @@ export default function ReviewPage() {
 
   if (!current) return <div className="loading">Loading…</div>;
 
-  const isCorrect = locked && answerIndex !== null && selected === answerIndex;
   const progress = totalItems.current > 0 ? correctCount / totalItems.current : 0;
 
   async function submitReview(responses: ItemResponse[]) {
@@ -150,15 +104,12 @@ export default function ReviewPage() {
     }
   }
 
-  function advance() {
-    const item = queue[0].item;
-    const wasCorrect = answerIndex !== null && selected === answerIndex;
+  function advance(wasCorrect: boolean) {
+    const entry = queue[0];
+    const item = entry.item;
     if (!firstTry.current.has(item.itemId)) {
       firstTry.current.set(item.itemId, wasCorrect);
     }
-    setSelected(null);
-    setLocked(false);
-
     if (wasCorrect) {
       const nextQueue = queue.slice(1);
       setCorrectCount((c) => c + 1);
@@ -171,85 +122,21 @@ export default function ReviewPage() {
       }
     } else {
       const [, ...rest] = queue;
-      setQueue([...rest, { item }]);
+      setQueue([...rest, { item, attempt: entry.attempt + 1 }]);
     }
   }
 
   return (
-    <div className="lesson-wrap">
-      <div className="lesson-header">
-        <button className="lesson-close" onClick={() => navigate("/learn")} aria-label="Exit review">
-          ✕
-        </button>
-        <div className="progress-track" style={{ flex: 1 }}>
-          <div
-            className="progress-fill"
-            style={{ width: `${Math.round(progress * 100)}%`, background: accent }}
-          />
-        </div>
-        <span className="muted" style={{ fontSize: 13, whiteSpace: "nowrap" }}>
-          Daily review
-        </span>
-      </div>
-
-      <div className="card">
-        <div className="row spread" style={{ alignItems: "center" }}>
-          <div className="muted" style={{ fontSize: 13 }}>
-            {queue.length} to go
-          </div>
-          <span className="pill origin-review">Review</span>
-        </div>
-        <h2 style={{ marginTop: 6 }}>{current.prompt}</h2>
-
-        <div className="quiz-options mt-16">
-          {current.options.map((opt, i) => {
-            let cls = "quiz-option";
-            if (locked && answerIndex !== null) {
-              if (i === answerIndex) cls += " correct";
-              else if (i === selected) cls += " wrong";
-            } else if (i === selected) {
-              cls += " selected";
-            }
-            return (
-              <button key={i} className={cls} disabled={locked} onClick={() => setSelected(i)}>
-                {opt}
-              </button>
-            );
-          })}
-        </div>
-
-        {locked && (
-          <div className={`explanation ${isCorrect ? "good" : "bad"}`}>
-            <strong>{isCorrect ? "Correct!" : "Not quite — we'll ask this again."}</strong>{" "}
-            {explanation}
-          </div>
-        )}
-      </div>
-
-      <div className="row spread mt-16">
-        <button className="btn btn-ghost" onClick={() => navigate("/learn")}>
-          Exit
-        </button>
-        {!locked ? (
-          <button
-            className="btn"
-            style={{ background: accent }}
-            disabled={selected === null || answerIndex === null}
-            onClick={() => setLocked(true)}
-          >
-            {answerIndex === null ? "Loading…" : "Check"}
-          </button>
-        ) : (
-          <button
-            className="btn"
-            style={{ background: accent }}
-            disabled={submitting}
-            onClick={advance}
-          >
-            {submitting ? "Finishing…" : "Continue"}
-          </button>
-        )}
-      </div>
-    </div>
+    <QuizCard
+      key={current.itemId + "-" + queue[0].attempt}
+      item={current}
+      accent={accent}
+      onNext={advance}
+      submitting={submitting}
+      progress={progress}
+      remaining={queue.length}
+      headerTitle="Daily review"
+      onExit={() => navigate("/learn")}
+    />
   );
 }

@@ -1454,3 +1454,400 @@ select:focus {
   color: #7fb5ff;
   background: rgba(127, 181, 255, 0.14);
 }
+
+/* ── Interactive question types ──────────────────────────────────────────── */
+
+/* Scenario / event framing boxes above a prompt. */
+.scenario-box {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.event-box {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 122, 60, 0.12);
+  border: 1px solid rgba(255, 122, 60, 0.4);
+  color: #ffb184;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+/* Type pills on interactive items. */
+.pill.type-decision {
+  color: #c792ea;
+  background: rgba(199, 146, 234, 0.16);
+}
+.pill.type-allocation {
+  color: #32d296;
+  background: rgba(50, 210, 150, 0.16);
+}
+.pill.type-market_event {
+  color: #ff7a3c;
+  background: rgba(255, 122, 60, 0.16);
+}
+
+/* Decision / market-event choices reveal a rationale/outcome after answering. */
+.decision-choice {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.decision-choice-label {
+  font-weight: 600;
+}
+.decision-choice-why {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+/* Allocation sliders. */
+.alloc {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.alloc-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+.alloc-sum {
+  font-weight: 800;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+}
+.alloc-sum.ok {
+  color: var(--gain);
+  background: rgba(47, 206, 143, 0.14);
+}
+.alloc-sum.off {
+  color: var(--loss);
+  background: rgba(255, 107, 107, 0.14);
+}
+.alloc-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.alloc-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.alloc-icon {
+  font-size: 18px;
+}
+.alloc-value {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-weight: 700;
+  font-size: 13px;
+}
+.alloc-row input[type="range"] {
+  width: 100%;
+  height: 6px;
+  cursor: pointer;
+}
+
+/* ── Mascot: Penny ───────────────────────────────────────────────────────── */
+.penny {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.penny-face {
+  font-size: 46px;
+  line-height: 1;
+  animation: penny-bob 2.4s ease-in-out infinite;
+}
+.penny-celebrate .penny-face {
+  animation: penny-hop 0.6s ease-in-out infinite;
+}
+@keyframes penny-bob {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-4px) rotate(2deg); }
+}
+@keyframes penny-hop {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .penny-face { animation: none; }
+}
+.penny-speech {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  box-shadow: var(--shadow-sm);
+}
+
+.hub-level {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--accent);
+  margin-top: 2px;
+}
+
+/* ── Daily Money Challenge ───────────────────────────────────────────────── */
+.daily-challenge {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(255, 203, 107, 0.1), rgba(50, 210, 150, 0.06));
+  border: 1px solid rgba(255, 203, 107, 0.3);
+}
+.daily-challenge-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #ffcb6b;
+}
+.daily-challenge-q {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 6px 0 14px;
+}
+.daily-challenge-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.daily-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 2px solid var(--border);
+  color: var(--text);
+  transition: transform 0.1s ease, border-color 0.15s ease;
+}
+.daily-choice:not(:disabled):hover {
+  transform: translateY(-2px);
+}
+.daily-choice.best {
+  border-color: var(--gain);
+  background: rgba(47, 206, 143, 0.1);
+}
+.daily-choice.notbest {
+  border-color: var(--border);
+  opacity: 0.8;
+}
+.daily-choice-label {
+  font-weight: 700;
+}
+.daily-choice-result {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+.daily-takeaway {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 14px;
+}
+.daily-xp {
+  color: var(--gain);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* ── Section headings ────────────────────────────────────────────────────── */
+.section-heading {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 32px 0 2px;
+}
+.section-sub {
+  color: var(--text-dim);
+  font-size: 14px;
+  margin: 0 0 14px;
+}
+
+/* ── Money Quests ────────────────────────────────────────────────────────── */
+.quest-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.quest-card {
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.quest-card.complete {
+  background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+}
+.quest-card-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.quest-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+.quest-title {
+  font-weight: 800;
+  font-size: 15px;
+}
+.quest-tagline {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.quest-steps {
+  display: flex;
+  gap: 6px;
+}
+.quest-step {
+  flex: 1;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+}
+.quest-step.current {
+  box-shadow: 0 0 0 2px var(--accent) inset;
+}
+.quest-progress-text {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.quest-cta {
+  color: #04140d;
+  font-weight: 800;
+  border: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.quest-badge {
+  font-weight: 800;
+  color: var(--gain);
+  text-align: center;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(47, 206, 143, 0.12);
+}
+
+/* ── Skills mastery bars ─────────────────────────────────────────────────── */
+.skill-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px 24px;
+}
+.skill-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.skill-icon {
+  font-size: 18px;
+}
+.skill-pct {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-weight: 800;
+}
+.skill-track {
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.skill-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--accent), var(--brand));
+  transition: width 0.5s ease;
+}
+
+/* ── Results screen polish ───────────────────────────────────────────────── */
+.results-celebrate {
+  animation: results-pop 0.4s ease;
+}
+@keyframes results-pop {
+  0% { transform: scale(0.96); opacity: 0.6; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.results-mascot {
+  font-size: 46px;
+}
+.results-eyebrow {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  margin-top: 6px;
+}
+.results-stars {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 10px 0;
+}
+.results-star {
+  font-size: 34px;
+  color: var(--border);
+}
+.results-star.on {
+  color: #ffcb6b;
+  animation: star-pop 0.4s ease backwards;
+}
+.results-star.on:nth-child(2) { animation-delay: 0.12s; }
+.results-star.on:nth-child(3) { animation-delay: 0.24s; }
+@keyframes star-pop {
+  0% { transform: scale(0) rotate(-30deg); }
+  70% { transform: scale(1.25) rotate(8deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .results-celebrate,
+  .results-star.on { animation: none; }
+}
+
+/* Daily challenge stacks on narrow screens. */
+@media (max-width: 620px) {
+  .daily-challenge-options {
+    grid-template-columns: 1fr;
+  }
+}

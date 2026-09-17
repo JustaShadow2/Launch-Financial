@@ -1,4 +1,11 @@
-import { COURSES, QuizQuestion, findLesson, Lesson } from "../data/learningContent";
+import {
+  COURSES,
+  QuizQuestion,
+  RenderableItem,
+  findLesson,
+  Lesson,
+  toRenderable,
+} from "../data/learningContent";
 import {
   ItemMemoryLite,
   currentRecall,
@@ -25,16 +32,12 @@ import {
 const NOMINAL_SESSION = 15;
 const MIN_SESSION = 4; // never a trivially short session if content allows
 
-export interface SessionItem {
-  // Stable question id (e.g. "gs-1-q1"). Used to grade and to update memory.
-  itemId: string;
+// A session item carries the full renderable payload for its type (choice,
+// decision, allocation, market_event) plus session context. Correct answers
+// for choice-style items are omitted (see toRenderable); grading is server-side.
+export interface SessionItem extends RenderableItem {
   lessonId: string;
   courseId: string;
-  type: QuizQuestion["type"];
-  prompt: string;
-  options: string[];
-  // NOTE: the correct-answer index is intentionally NOT sent to the client.
-  // Grading happens server-side against the content by itemId.
   // Where the item came from, for UI hinting ("Review" badge, etc.).
   origin: "new" | "reinforcement" | "review";
 }
@@ -88,12 +91,9 @@ function toSessionItem(
   origin: SessionItem["origin"]
 ): SessionItem {
   return {
-    itemId: q.id,
+    ...toRenderable(q),
     lessonId,
     courseId,
-    type: q.type,
-    prompt: q.prompt,
-    options: q.options,
     origin,
   };
 }

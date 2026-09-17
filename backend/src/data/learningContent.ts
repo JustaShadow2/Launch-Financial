@@ -9,11 +9,20 @@
  *   slides (teaching) + questions (quiz to complete the lesson).
  */
 
-export type QuestionType = "multiple_choice" | "true_false";
+export type QuestionType =
+  | "multiple_choice"
+  | "true_false"
+  | "decision"
+  | "allocation"
+  | "market_event";
 
-export interface QuizQuestion {
+/**
+ * A standard single-answer question (multiple choice / true-false). Graded by
+ * strict index match against `answer`.
+ */
+export interface ChoiceQuestion {
   id: string;
-  type: QuestionType;
+  type: "multiple_choice" | "true_false";
   prompt: string;
   options: string[];
   /** Index into options of the correct answer. */
@@ -21,6 +30,73 @@ export interface QuizQuestion {
   /** Shown after answering, right or wrong. */
   explanation: string;
 }
+
+/**
+ * A "decision moment": a real-life financial situation with several plausible
+ * choices. There IS a best answer (for grading + spaced repetition), but every
+ * option carries its own rationale so the app can explain *why*, not just
+ * whether the pick was right.
+ */
+export interface DecisionQuestion {
+  id: string;
+  type: "decision";
+  /** Optional scenario framing shown above the prompt. */
+  scenario?: string;
+  prompt: string;
+  choices: { label: string; rationale: string }[];
+  /** Index of the best choice. */
+  answer: number;
+  explanation: string;
+}
+
+/**
+ * An allocation exercise: split a pool of money across buckets with sliders.
+ * Graded against a target range per bucket (a rubric, not a single value) so
+ * reasonable allocations pass. `tolerance` is the +/- percentage-point leeway.
+ */
+export interface AllocationQuestion {
+  id: string;
+  type: "allocation";
+  prompt: string;
+  /** Total dollars to allocate (display only; grading is on percentages). */
+  amount: number;
+  buckets: {
+    key: string;
+    label: string;
+    icon: string;
+    /** Ideal share of the pool, 0..100. */
+    target: number;
+  }[];
+  /** Allowed deviation per bucket in percentage points (default 12). */
+  tolerance?: number;
+  explanation: string;
+}
+
+/**
+ * A market-event simulation: given a portfolio situation and a shock, choose
+ * how to react. Scripted outcomes (no live market model) — each option has a
+ * consequence string, and one is the sound response.
+ */
+export interface MarketEventQuestion {
+  id: string;
+  type: "market_event";
+  /** The setup, e.g. "You hold a diversified portfolio worth $10,000." */
+  scenario: string;
+  /** The shock, e.g. "🚨 The market drops 18% in a week." */
+  event: string;
+  prompt: string;
+  options: { label: string; outcome: string }[];
+  /** Index of the wisest response. */
+  answer: number;
+  explanation: string;
+}
+
+/** Any gradable learning item. Discriminated on `type`. */
+export type QuizQuestion =
+  | ChoiceQuestion
+  | DecisionQuestion
+  | AllocationQuestion
+  | MarketEventQuestion;
 
 export interface Slide {
   title: string;
@@ -663,6 +739,21 @@ export const COURSES: Course[] = [
             answer: 0,
             explanation: "Automating the 20% makes investing effortless and consistent.",
           },
+          {
+            id: "fl-2-q5",
+            type: "allocation",
+            prompt:
+              "It's payday — you have $3,000 of after-tax income. Split it using the 50/30/20 guideline.",
+            amount: 3000,
+            buckets: [
+              { key: "needs", label: "Needs", icon: "🏠", target: 50 },
+              { key: "wants", label: "Wants", icon: "🍔", target: 30 },
+              { key: "save", label: "Save & invest", icon: "💰", target: 20 },
+            ],
+            tolerance: 12,
+            explanation:
+              "The 50/30/20 guideline puts ~50% to needs, ~30% to wants, and ~20% to saving and investing. Your split just needs to be in the right ballpark.",
+          },
         ],
       },
       {
@@ -865,6 +956,37 @@ export const COURSES: Course[] = [
             options: ["True", "False"],
             answer: 0,
             explanation: "Diversification reduces risk without necessarily lowering expected return.",
+          },
+          {
+            id: "bp-1-q5",
+            type: "decision",
+            scenario: "A friend just made 200% on a single hot stock and says to put everything into it.",
+            prompt: "You have $2,000 to invest for the long term. What's the soundest move?",
+            choices: [
+              {
+                label: "Put all $2,000 into the one hot stock",
+                rationale:
+                  "Concentrating everything in one stock means one bad outcome can wipe out your whole stake — the opposite of diversification.",
+              },
+              {
+                label: "Put it in a broad, diversified index fund",
+                rationale:
+                  "One purchase spreads your money across hundreds of companies, cutting single-stock risk while keeping long-term growth potential.",
+              },
+              {
+                label: "Keep it all in cash to be safe",
+                rationale:
+                  "Cash feels safe but loses purchasing power to inflation over time; for long-term money that's its own risk.",
+              },
+              {
+                label: "Split it across five random meme stocks",
+                rationale:
+                  "That's more names but still concentrated in one speculative corner — not true diversification across the market.",
+              },
+            ],
+            answer: 1,
+            explanation:
+              "For long-term money, a broad diversified fund gives growth potential while spreading risk. Chasing one hot stock concentrates risk; cash alone loses to inflation.",
           },
         ],
       },
@@ -1126,6 +1248,38 @@ export const COURSES: Course[] = [
             ],
             answer: 1,
             explanation: "Higher volatility means bigger swings — more potential reward, bumpier ride.",
+          },
+          {
+            id: "rm-1-q4",
+            type: "market_event",
+            scenario:
+              "You hold a diversified, long-term portfolio worth $10,000 that you won't need for many years.",
+            event: "🚨 The market suddenly drops 18% in a single week. Headlines are scary.",
+            prompt: "What's the wisest move?",
+            options: [
+              {
+                label: "Sell everything to cash",
+                outcome:
+                  "You lock in the 18% loss and now have to guess when to get back in — usually the worst outcome.",
+              },
+              {
+                label: "Stick to your plan (do nothing)",
+                outcome:
+                  "Historically, diversified markets have recovered given time. Staying invested avoids selling low.",
+              },
+              {
+                label: "Panic and check the balance hourly",
+                outcome: "Stress rises, decisions get worse, and nothing improves your position.",
+              },
+              {
+                label: "Put your emergency fund in too, to 'buy the dip' big",
+                outcome:
+                  "Risking money you may need soon turns a market dip into a personal crisis if life happens.",
+              },
+            ],
+            answer: 1,
+            explanation:
+              "For long-horizon money in a diversified portfolio, reacting to a short-term drop by selling tends to hurt returns. Sticking to the plan is usually wisest — and never risk your emergency fund.",
           },
         ],
       },
@@ -5472,3 +5626,126 @@ export function allLessonsInOrder(): Array<{ courseId: string; lessonId: string 
 }
 
 export const TOTAL_LESSONS = allLessonsInOrder().length;
+
+// ── Question helpers (support the discriminated union) ───────────────────────
+
+/** The client-facing shape of a session item — enough to render any type. */
+export interface RenderableItem {
+  itemId: string;
+  type: QuestionType;
+  prompt: string;
+  // multiple_choice / true_false
+  options?: string[];
+  // decision
+  scenario?: string;
+  choices?: { label: string; rationale: string }[];
+  // allocation
+  amount?: number;
+  buckets?: { key: string; label: string; icon: string; target: number }[];
+  tolerance?: number;
+  // market_event
+  event?: string;
+  eventOptions?: { label: string; outcome: string }[];
+}
+
+/**
+ * Project a question into its renderable client payload. Correct answers are
+ * intentionally omitted where revealing them would spoil grading (choice /
+ * decision / market_event answer indices). Allocation targets are needed
+ * client-side to render bars, so they're included — the grade is still computed
+ * server-side, and knowing the target doesn't trivialize the learning.
+ */
+export function toRenderable(q: QuizQuestion): RenderableItem {
+  switch (q.type) {
+    case "multiple_choice":
+    case "true_false":
+      return { itemId: q.id, type: q.type, prompt: q.prompt, options: q.options };
+    case "decision":
+      return {
+        itemId: q.id,
+        type: q.type,
+        prompt: q.prompt,
+        scenario: q.scenario,
+        choices: q.choices.map((c) => ({ label: c.label, rationale: c.rationale })),
+      };
+    case "allocation":
+      return {
+        itemId: q.id,
+        type: q.type,
+        prompt: q.prompt,
+        amount: q.amount,
+        buckets: q.buckets,
+        tolerance: q.tolerance ?? 12,
+      };
+    case "market_event":
+      return {
+        itemId: q.id,
+        type: q.type,
+        prompt: q.prompt,
+        scenario: q.scenario,
+        event: q.event,
+        eventOptions: q.options.map((o) => ({ label: o.label, outcome: o.outcome })),
+      };
+  }
+}
+
+/** A submitted response — shape varies by question type. */
+export type ItemAnswer =
+  | { kind: "choice"; index: number }
+  | { kind: "allocation"; weights: Record<string, number> };
+
+export interface GradeResult {
+  correct: boolean;
+  explanation: string;
+  /** For choice-style items: the index that was correct (for UI reveal). */
+  correctIndex?: number;
+}
+
+/** Grade any question type against a submitted answer. */
+export function gradeQuestion(q: QuizQuestion, answer: ItemAnswer | undefined): GradeResult {
+  switch (q.type) {
+    case "multiple_choice":
+    case "true_false": {
+      const idx = answer && answer.kind === "choice" ? answer.index : -1;
+      return { correct: idx === q.answer, explanation: q.explanation, correctIndex: q.answer };
+    }
+    case "decision": {
+      const idx = answer && answer.kind === "choice" ? answer.index : -1;
+      return { correct: idx === q.answer, explanation: q.explanation, correctIndex: q.answer };
+    }
+    case "market_event": {
+      const idx = answer && answer.kind === "choice" ? answer.index : -1;
+      return { correct: idx === q.answer, explanation: q.explanation, correctIndex: q.answer };
+    }
+    case "allocation": {
+      const tol = q.tolerance ?? 12;
+      const weights = answer && answer.kind === "allocation" ? answer.weights : {};
+      // Every bucket must land within tolerance of its target, and the split
+      // must sum to ~100%.
+      const sum = q.buckets.reduce((s, b) => s + (weights[b.key] ?? 0), 0);
+      const sumsToWhole = Math.abs(sum - 100) <= 2;
+      const withinRubric = q.buckets.every(
+        (b) => Math.abs((weights[b.key] ?? 0) - b.target) <= tol
+      );
+      return { correct: sumsToWhole && withinRubric, explanation: q.explanation };
+    }
+  }
+}
+
+/** Correct-answer index for choice-style items (for the results payload). */
+export function correctIndexOf(q: QuizQuestion): number {
+  switch (q.type) {
+    case "multiple_choice":
+    case "true_false":
+    case "decision":
+    case "market_event":
+      return q.answer;
+    case "allocation":
+      return -1;
+  }
+}
+
+/** Explanation text for any item. */
+export function explanationOf(q: QuizQuestion): string {
+  return q.explanation;
+}

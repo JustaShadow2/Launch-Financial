@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
-import { CourseView, DailyLesson, LearnStats, LessonView } from "../api/types";
+import {
+  CourseView,
+  DailyChallenge,
+  DailyLesson,
+  LearnStats,
+  LessonView,
+  QuestView,
+} from "../api/types";
 
 // Difficulty drives each branch's accent color.
 const LEVEL_COLORS: Record<string, string> = {
@@ -21,6 +28,8 @@ export default function LearnPage() {
   const [courses, setCourses] = useState<CourseView[]>([]);
   const [stats, setStats] = useState<LearnStats | null>(null);
   const [daily, setDaily] = useState<DailyLesson | null>(null);
+  const [quests, setQuests] = useState<QuestView[]>([]);
+  const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -30,11 +39,15 @@ export default function LearnPage() {
       api.get<{ courses: CourseView[] }>("/learn/courses"),
       api.get<LearnStats>("/learn/stats"),
       api.get<{ lesson: DailyLesson | null }>("/learn/daily"),
+      api.get<{ quests: QuestView[] }>("/learn/quests"),
+      api.get<DailyChallenge>("/learn/daily-challenge"),
     ])
-      .then(([c, s, d]) => {
+      .then(([c, s, d, q, ch]) => {
         setCourses(c.courses);
         setStats(s);
         setDaily(d.lesson);
+        setQuests(q.quests);
+        setChallenge(ch);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -103,12 +116,14 @@ export default function LearnPage() {
           </button>
         )}
 
-        {/* ── Central hub ── */}
+        {/* ── Central hub with mascot ── */}
         <div className="hub">
+          <Penny mood={stats?.dailyGoalMet ? "celebrate" : "happy"} />
           <div className="hub-core" title="Your investing journey">
             <span className="hub-core-icon">🧭</span>
             <span className="hub-core-pct">{totalPct}%</span>
           </div>
+          <div className="hub-level">Level {stats?.level ?? 1} · Financial Explorer</div>
           <div className="hub-label">
             {activeCourse ? "Choose a direction" : "Pick a path to begin"}
           </div>
@@ -118,6 +133,9 @@ export default function LearnPage() {
             </button>
           )}
         </div>
+
+        {/* ── Daily Money Challenge ── */}
+        {challenge && <DailyChallengeCard challenge={challenge} />}
 
         {/* ── Direction chooser: the branches you can head toward ── */}
         <div className="directions">
@@ -177,7 +195,150 @@ export default function LearnPage() {
             onOpenLesson={openLesson}
           />
         )}
+
+        {/* ── Money Quests ── */}
+        {quests.length > 0 && (
+          <section className="quests">
+            <h2 className="section-heading">🗺️ Money Quests</h2>
+            <p className="section-sub">Multi-lesson missions with a badge to earn.</p>
+            <div className="quest-grid">
+              {quests.map((q) => (
+                <QuestCard key={q.id} quest={q} onOpenLesson={openLesson} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── Skills mastery ── */}
+        {stats && stats.skills.length > 0 && (
+          <section className="skills">
+            <h2 className="section-heading">🧠 Your Skills</h2>
+            <div className="skill-list">
+              {stats.skills.map((sk) => (
+                <div className="skill-row" key={sk.key}>
+                  <div className="skill-head">
+                    <span className="skill-icon">{sk.icon}</span>
+                    <span className="skill-label">{sk.label}</span>
+                    <span className="skill-pct">{sk.percent}%</span>
+                  </div>
+                  <div className="skill-track">
+                    <div className="skill-fill" style={{ width: `${sk.percent}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
+    </div>
+  );
+}
+
+// ── Mascot: Penny the squirrel (acorns → savings → wealth) ──────────────────
+function Penny({ mood }: { mood: "happy" | "celebrate" | "think" | "oops" }) {
+  const face =
+    mood === "celebrate" ? "🥳" : mood === "think" ? "🤔" : mood === "oops" ? "😬" : "🐿️";
+  const line =
+    mood === "celebrate"
+      ? "Nut streak secured! 🌰"
+      : mood === "think"
+      ? "Hmm, let's think this through…"
+      : mood === "oops"
+      ? "Oops — every acorn teaches us something."
+      : "Let's grow those acorns!";
+  return (
+    <div className={`penny penny-${mood}`}>
+      <div className="penny-face">{face}</div>
+      <div className="penny-speech">{line}</div>
+    </div>
+  );
+}
+
+// ── Daily Money Challenge card ──────────────────────────────────────────────
+function DailyChallengeCard({ challenge }: { challenge: DailyChallenge }) {
+  const [picked, setPicked] = useState<number | null>(null);
+  return (
+    <div className="daily-challenge">
+      <div className="daily-challenge-eyebrow">💰 DAILY MONEY CHALLENGE</div>
+      <div className="daily-challenge-q">{challenge.question}</div>
+      <div className="daily-challenge-options">
+        {challenge.options.map((o, i) => {
+          const isPicked = picked === i;
+          const isBest = i === challenge.best;
+          let cls = "daily-choice";
+          if (picked !== null) {
+            if (isBest) cls += " best";
+            else if (isPicked) cls += " notbest";
+          }
+          return (
+            <button
+              key={i}
+              className={cls}
+              disabled={picked !== null}
+              onClick={() => setPicked(i)}
+            >
+              <span className="daily-choice-label">{o.label}</span>
+              {picked !== null && <span className="daily-choice-result">{o.result}</span>}
+            </button>
+          );
+        })}
+      </div>
+      {picked !== null && (
+        <div className="daily-takeaway">
+          <strong>💡 {challenge.takeaway}</strong>
+          <span className="daily-xp">+25 XP</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Money Quest card ────────────────────────────────────────────────────────
+function QuestCard({
+  quest,
+  onOpenLesson,
+}: {
+  quest: QuestView;
+  onOpenLesson: (id: string) => void;
+}) {
+  const next = quest.steps.find((s) => s.current) ?? quest.steps.find((s) => !s.completed);
+  return (
+    <div className={`quest-card ${quest.complete ? "complete" : ""}`} style={{ borderColor: quest.color }}>
+      <div className="quest-card-head">
+        <span className="quest-icon" style={{ background: `${quest.color}22` }}>
+          {quest.icon}
+        </span>
+        <div className="quest-card-titles">
+          <div className="quest-title">{quest.title}</div>
+          <div className="quest-tagline">{quest.tagline}</div>
+        </div>
+      </div>
+
+      <div className="quest-steps">
+        {quest.steps.map((s) => (
+          <span
+            key={s.lessonId}
+            className={`quest-step ${s.completed ? "done" : s.current ? "current" : ""}`}
+            style={s.completed ? { background: quest.color } : undefined}
+            title={s.title}
+          />
+        ))}
+      </div>
+      <div className="quest-progress-text">
+        {quest.completedSteps}/{quest.totalSteps} steps · {quest.percent}%
+      </div>
+
+      {quest.complete ? (
+        <div className="quest-badge">{quest.badge} unlocked!</div>
+      ) : next ? (
+        <button
+          className="btn btn-sm quest-cta"
+          style={{ background: quest.color }}
+          onClick={() => onOpenLesson(next.lessonId)}
+        >
+          {quest.completedSteps === 0 ? "Start quest" : "Continue"}: {next.title}
+        </button>
+      ) : null}
     </div>
   );
 }

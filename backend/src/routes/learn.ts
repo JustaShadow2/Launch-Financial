@@ -5,11 +5,14 @@ import {
   completeLesson,
   completeReview,
   getCourses,
+  getDailyChallenge,
   getDailyLesson,
   getLessonContent,
   getLessonSession,
+  getQuests,
   getReviewSession,
   getStats,
+  gradeItem,
   LearnError,
 } from "../services/learning";
 
@@ -40,6 +43,46 @@ learnRouter.get(
   asyncHandler(async (req: AuthedRequest, res) => {
     const lesson = await getDailyLesson(req.userId!);
     res.json({ lesson });
+  })
+);
+
+// Money Quests with per-user progress.
+learnRouter.get(
+  "/quests",
+  asyncHandler(async (req: AuthedRequest, res) => {
+    res.json({ quests: await getQuests(req.userId!) });
+  })
+);
+
+// Today's daily money challenge (same for everyone on a given day).
+learnRouter.get(
+  "/daily-challenge",
+  asyncHandler(async (_req: AuthedRequest, res) => {
+    res.json(getDailyChallenge());
+  })
+);
+
+// Grade a single item's answer authoritatively (used for live feedback and the
+// mistake recycler, so correct answers for interactive types never ship to the
+// client up front).
+const gradeSchema = z.object({
+  itemId: z.string().min(1).max(64),
+  answer: z.union([
+    z.object({ kind: z.literal("choice"), index: z.number().int() }),
+    z.object({ kind: z.literal("allocation"), weights: z.record(z.number()) }),
+  ]),
+});
+learnRouter.post(
+  "/grade",
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const parsed = gradeSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    try {
+      res.json(gradeItem(parsed.data.itemId, parsed.data.answer));
+    } catch (e) {
+      if (e instanceof LearnError) return res.status(e.status).json({ error: e.message });
+      throw e;
+    }
   })
 );
 
