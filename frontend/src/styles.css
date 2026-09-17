@@ -1851,3 +1851,283 @@ select:focus {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Interactive map: gateways + path view ───────────────────────────────── */
+
+/* The map is the row of gateway regions radiating from the hub. */
+.map {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-top: 30px;
+  padding-top: 30px;
+}
+/* Trunk line from the hub down into the map. */
+.map::before {
+  content: "";
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  width: 3px;
+  height: 30px;
+  background: var(--border);
+  transform: translateX(-50%);
+}
+
+/* A gateway = a direction you can travel into. */
+.gateway {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  padding: 20px 16px 16px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 2px solid var(--border);
+  color: var(--text);
+  transition: transform 0.12s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+.gateway:hover {
+  transform: translateY(-3px);
+  filter: brightness(1.05);
+  box-shadow: var(--shadow);
+}
+.gateway:active {
+  transform: translateY(0);
+}
+/* Little connector "road" of dots leading up into each gateway. */
+.gateway-trail {
+  position: absolute;
+  top: -22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.gateway-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.gateway-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+}
+.gateway-label {
+  font-size: 18px;
+  font-weight: 800;
+}
+.gateway-blurb {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.4;
+  min-height: 36px;
+}
+.gateway-progress {
+  width: 100%;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.gateway-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width 0.4s ease;
+}
+.gateway-meta {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.gateway-enter {
+  font-weight: 800;
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+/* Path view: the entered direction's journey. */
+.path-view {
+  margin-top: 8px;
+}
+.path-view-bar {
+  position: sticky;
+  top: 52px; /* sits just under the HUD */
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  background: linear-gradient(var(--bg) 70%, transparent);
+}
+.path-view-title {
+  font-size: 20px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.path-view-icon {
+  font-size: 22px;
+}
+.path-view-spacer {
+  flex: 1;
+}
+
+/* Stack gateways on narrow screens. */
+@media (max-width: 760px) {
+  .map {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Learn tabs + single scrolling path (Duolingo hybrid) ────────────────── */
+
+/* Tab switcher under the HUD. */
+.learn-tabs {
+  position: sticky;
+  top: 52px;
+  z-index: 18;
+  display: flex;
+  gap: 8px;
+  padding: 8px 0 10px;
+  background: linear-gradient(var(--bg) 78%, transparent);
+}
+.learn-tab {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  font-weight: 800;
+  font-size: 14px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.learn-tab.active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+
+/* Jump-to-section chips (directional nav without leaving the path). */
+.section-jump {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.section-chip {
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-weight: 800;
+  font-size: 13px;
+  transition: filter 0.15s, transform 0.08s;
+}
+.section-chip:hover {
+  filter: brightness(1.1);
+}
+.section-chip:active {
+  transform: scale(0.97);
+}
+
+/* Unit section = one course on the continuous path. */
+.unit-section {
+  margin-top: 8px;
+}
+/* Full-width colored unit banner, scroll-margin so jumps land below the HUD. */
+.unit-banner {
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  color: #04140d;
+  box-shadow: var(--shadow-sm);
+  margin-top: 24px;
+  scroll-margin-top: 104px;
+}
+.unit-banner-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+.unit-banner-title {
+  font-size: 20px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+.unit-banner-icon {
+  font-size: 24px;
+}
+.unit-banner-progress {
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+.unit-trail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+  padding: 34px 0 10px;
+}
+
+/* Penny beside the active node. */
+.penny-beside {
+  position: absolute;
+  left: calc(50% + 60px);
+  top: -6px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  z-index: 3;
+}
+.penny-beside .penny-face {
+  font-size: 40px;
+}
+.penny-beside .penny-speech {
+  font-size: 12px;
+  max-width: 150px;
+}
+@media (max-width: 700px) {
+  .penny-beside .penny-speech {
+    display: none;
+  }
+  .penny-beside {
+    left: calc(50% + 46px);
+  }
+}
+
+/* End-of-path marker. */
+.path-end {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 30px 0 10px;
+  color: var(--text-dim);
+  text-align: center;
+}
+.path-end-icon {
+  font-size: 40px;
+}
+.path-end-text {
+  font-weight: 700;
+  font-size: 14px;
+  max-width: 320px;
+}

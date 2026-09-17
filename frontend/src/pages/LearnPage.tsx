@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import {
@@ -10,19 +10,22 @@ import {
   QuestView,
 } from "../api/types";
 
-// Difficulty drives each branch's accent color.
+// Difficulty drives each unit's accent color.
 const LEVEL_COLORS: Record<string, string> = {
   Beginner: "#7fb5ff",
   Intermediate: "#c792ea",
   Advanced: "#ff7a3c",
 };
 
-// The directions that fan out from the central hub, grouped by tier.
-const BRANCHES: { level: string; label: string; icon: string; dir: string }[] = [
-  { level: "Beginner", label: "Foundations", icon: "🌱", dir: "◀ West" },
-  { level: "Intermediate", label: "Builder", icon: "📈", dir: "▲ North" },
-  { level: "Advanced", label: "Mastery", icon: "🚀", dir: "▶ East" },
+// Tier "directions" used for the jump-to-section chips. The path itself is one
+// continuous scroll; these just scroll you to the first unit of that tier.
+const SECTIONS: { level: string; label: string; icon: string }[] = [
+  { level: "Beginner", label: "Foundations", icon: "🌱" },
+  { level: "Intermediate", label: "Builder", icon: "📈" },
+  { level: "Advanced", label: "Mastery", icon: "🚀" },
 ];
+
+type Tab = "path" | "more";
 
 export default function LearnPage() {
   const [courses, setCourses] = useState<CourseView[]>([]);
@@ -31,8 +34,12 @@ export default function LearnPage() {
   const [quests, setQuests] = useState<QuestView[]>([]);
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("path");
   const navigate = useNavigate();
+
+  // Refs for auto-scroll: the current lesson node, and each tier's first unit.
+  const currentNodeRef = useRef<HTMLDivElement>(null);
+  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     Promise.all([
@@ -53,18 +60,40 @@ export default function LearnPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const activeCourse = useMemo(
-    () => courses.find((c) => c.id === activeCourseId) ?? null,
-    [courses, activeCourseId]
-  );
+  // On first load of the path, scroll to the current lesson so a returning
+  // user's "continue" point is front and center (Duolingo behavior).
+  const didAutoScroll = useRef(false);
+  useEffect(() => {
+    if (loading || tab !== "path" || didAutoScroll.current) return;
+    if (currentNodeRef.current) {
+      didAutoScroll.current = true;
+      // Delay a frame so layout is settled.
+      requestAnimationFrame(() =>
+        currentNodeRef.current?.scrollIntoView({ behavior: "auto", block: "center" })
+      );
+    }
+  }, [loading, tab, courses]);
+
+  // The single global "current" lesson across the whole path (first incomplete).
+  const currentLessonId = useMemo(() => {
+    for (const c of courses) {
+      const cur = c.lessons.find((l) => l.status === "current");
+      if (cur) return cur.id;
+    }
+    return null;
+  }, [courses]);
 
   if (loading) return <div className="loading">Loading your academy…</div>;
 
   const openLesson = (id: string) => navigate(`/learn/lesson/${id}`);
-  const totalPct =
-    stats && stats.totalLessons > 0
-      ? Math.round((stats.completedLessons / stats.totalLessons) * 100)
-      : 0;
+
+  function jumpTo(level: string) {
+    sectionRefs.current[level]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // First course index per tier, so we can attach the section ref for jumps.
+  const firstOfLevel: Record<string, string> = {};
+  for (const c of courses) if (!(c.level in firstOfLevel)) firstOfLevel[c.level] = c.id;
 
   return (
     <div className="learn-page">
@@ -82,172 +111,263 @@ export default function LearnPage() {
           <span className="hud-icon">🧊</span>
           <span className="hud-value">{stats?.streakFreezes ?? 0}</span>
         </div>
-        <div className="hud-stat hud-stat-progress" title="Lessons completed">
+        <div className="hud-stat hud-stat-progress" title="Level">
           <span className="hud-icon">🎓</span>
-          <span className="hud-value">
-            {stats?.completedLessons ?? 0}
-            <span className="hud-total">/{stats?.totalLessons ?? 0}</span>
-          </span>
+          <span className="hud-value">Lvl {stats?.level ?? 1}</span>
         </div>
       </div>
 
-      <div className="learn-body">
-        {stats?.freezeUsedDay && (
-          <div className="freeze-strip">
-            <span className="freeze-icon">🧊</span>
-            <span>
-              A <strong>Streak Freeze</strong> saved your streak. {stats.streakFreezes} left.
-            </span>
-          </div>
-        )}
+      {/* Tabs: the path is the star; everything else lives under "More". */}
+      <div className="learn-tabs">
+        <button className={`learn-tab ${tab === "path" ? "active" : ""}`} onClick={() => setTab("path")}>
+          🗺️ Path
+        </button>
+        <button className={`learn-tab ${tab === "more" ? "active" : ""}`} onClick={() => setTab("more")}>
+          ⭐ Challenges & Quests
+        </button>
+      </div>
 
-        {stats && stats.overdueItems > 0 && (
-          <button className="review-banner" onClick={() => navigate("/learn/review")}>
-            <div className="review-banner-left">
-              <span className="review-banner-icon">🧠</span>
-              <div>
-                <div className="review-banner-title">
-                  {stats.overdueItems} item{stats.overdueItems === 1 ? "" : "s"} ready to review
-                </div>
-                <div className="review-banner-sub">Refresh concepts before you forget them.</div>
-              </div>
+      {tab === "path" ? (
+        <div className="learn-body">
+          {/* Jump-to-section chips (directional nav without leaving the path). */}
+          <div className="section-jump">
+            {SECTIONS.map((s) => {
+              const has = courses.some((c) => c.level === s.level);
+              if (!has) return null;
+              return (
+                <button
+                  key={s.level}
+                  className="section-chip"
+                  style={{ color: LEVEL_COLORS[s.level] }}
+                  onClick={() => jumpTo(s.level)}
+                >
+                  {s.icon} {s.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {stats?.freezeUsedDay && (
+            <div className="freeze-strip">
+              <span className="freeze-icon">🧊</span>
+              <span>
+                A <strong>Streak Freeze</strong> saved your streak. {stats.streakFreezes} left.
+              </span>
             </div>
-            <span className="review-banner-cta">Review →</span>
-          </button>
-        )}
-
-        {/* ── Central hub with mascot ── */}
-        <div className="hub">
-          <Penny mood={stats?.dailyGoalMet ? "celebrate" : "happy"} />
-          <div className="hub-core" title="Your investing journey">
-            <span className="hub-core-icon">🧭</span>
-            <span className="hub-core-pct">{totalPct}%</span>
-          </div>
-          <div className="hub-level">Level {stats?.level ?? 1} · Financial Explorer</div>
-          <div className="hub-label">
-            {activeCourse ? "Choose a direction" : "Pick a path to begin"}
-          </div>
-          {daily && !activeCourse && (
-            <button className="hub-continue" onClick={() => openLesson(daily.lessonId)}>
-              {stats?.dailyGoalMet ? "Keep going" : "Continue"}: {daily.title}
+          )}
+          {stats && stats.overdueItems > 0 && (
+            <button className="review-banner" onClick={() => navigate("/learn/review")}>
+              <div className="review-banner-left">
+                <span className="review-banner-icon">🧠</span>
+                <div>
+                  <div className="review-banner-title">
+                    {stats.overdueItems} item{stats.overdueItems === 1 ? "" : "s"} ready to review
+                  </div>
+                  <div className="review-banner-sub">Refresh concepts before you forget them.</div>
+                </div>
+              </div>
+              <span className="review-banner-cta">Review →</span>
             </button>
           )}
+
+          {/* One continuous scrolling path — every course is a unit section. */}
+          {courses.map((course) => (
+            <UnitSection
+              key={course.id}
+              course={course}
+              accent={LEVEL_COLORS[course.level] ?? course.color}
+              currentLessonId={currentLessonId}
+              currentNodeRef={currentNodeRef}
+              sectionRef={
+                firstOfLevel[course.level] === course.id
+                  ? (el) => (sectionRefs.current[course.level] = el)
+                  : undefined
+              }
+              onOpenLesson={openLesson}
+            />
+          ))}
+
+          <div className="path-end">
+            <div className="path-end-icon">🏁</div>
+            <div className="path-end-text">
+              {stats && stats.completedLessons >= stats.totalLessons
+                ? "You've reached the summit — every lesson complete!"
+                : "Keep going — new ground awaits."}
+            </div>
+          </div>
         </div>
+      ) : (
+        <div className="learn-body">
+          {challenge && <DailyChallengeCard challenge={challenge} />}
 
-        {/* ── Daily Money Challenge ── */}
-        {challenge && <DailyChallengeCard challenge={challenge} />}
-
-        {/* ── Direction chooser: the branches you can head toward ── */}
-        <div className="directions">
-          {BRANCHES.map((branch) => {
-            const branchCourses = courses.filter((c) => c.level === branch.level);
-            if (branchCourses.length === 0) return null;
-            const accent = LEVEL_COLORS[branch.level];
-            return (
-              <div className="direction" key={branch.level}>
-                <div className="direction-header" style={{ color: accent }}>
-                  <span className="direction-icon">{branch.icon}</span>
-                  <div>
-                    <div className="direction-label">{branch.label}</div>
-                    <div className="direction-dir">{branch.dir}</div>
-                  </div>
-                </div>
-                <div className="direction-courses">
-                  {branchCourses.map((course) => {
-                    const complete = course.completedLessons >= course.totalLessons;
-                    const active = course.id === activeCourseId;
-                    return (
-                      <button
-                        key={course.id}
-                        className={`direction-chip ${active ? "active" : ""}`}
-                        style={
-                          active
-                            ? { borderColor: accent, background: `${accent}22` }
-                            : undefined
-                        }
-                        onClick={() =>
-                          setActiveCourseId((cur) => (cur === course.id ? null : course.id))
-                        }
-                      >
-                        <span className="direction-chip-icon">
-                          {complete ? "★" : course.icon}
-                        </span>
-                        <span className="direction-chip-text">
-                          <span className="direction-chip-title">{course.title}</span>
-                          <span className="direction-chip-sub">
-                            {course.completedLessons}/{course.totalLessons} · {course.percent}%
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+          {quests.length > 0 && (
+            <section className="quests">
+              <h2 className="section-heading">🗺️ Money Quests</h2>
+              <p className="section-sub">Multi-lesson missions with a badge to earn.</p>
+              <div className="quest-grid">
+                {quests.map((q) => (
+                  <QuestCard key={q.id} quest={q} onOpenLesson={openLesson} />
+                ))}
               </div>
-            );
-          })}
+            </section>
+          )}
+
+          {stats && stats.skills.length > 0 && (
+            <section className="skills">
+              <h2 className="section-heading">🧠 Your Skills</h2>
+              <div className="skill-list">
+                {stats.skills.map((sk) => (
+                  <div className="skill-row" key={sk.key}>
+                    <div className="skill-head">
+                      <span className="skill-icon">{sk.icon}</span>
+                      <span className="skill-label">{sk.label}</span>
+                      <span className="skill-pct">{sk.percent}%</span>
+                    </div>
+                    <div className="skill-track">
+                      <div className="skill-fill" style={{ width: `${sk.percent}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
+      )}
+    </div>
+  );
+}
 
-        {/* ── The chosen path: a winding gamified trail of that topic's lessons ── */}
-        {activeCourse && (
-          <TopicPath
-            course={activeCourse}
-            accent={LEVEL_COLORS[activeCourse.level] ?? activeCourse.color}
-            onOpenLesson={openLesson}
+// ── A unit = one course section on the continuous path ──────────────────────
+// Serpentine offsets so the trail winds left → center → right → center …
+const OFFSETS = [0, 0.34, 0.5, 0.34, 0, -0.34, -0.5, -0.34];
+
+function UnitSection({
+  course,
+  accent,
+  currentLessonId,
+  currentNodeRef,
+  sectionRef,
+  onOpenLesson,
+}: {
+  course: CourseView;
+  accent: string;
+  currentLessonId: string | null;
+  currentNodeRef: React.RefObject<HTMLDivElement>;
+  sectionRef?: (el: HTMLDivElement | null) => void;
+  onOpenLesson: (id: string) => void;
+}) {
+  return (
+    <section className="unit-section">
+      {/* Full-width colored unit-header banner (Duolingo style). */}
+      <div className="unit-banner" ref={sectionRef} style={{ background: accent }}>
+        <div className="unit-banner-eyebrow">{course.level}</div>
+        <div className="unit-banner-title">
+          <span className="unit-banner-icon">{course.icon}</span>
+          {course.title}
+        </div>
+        <div className="unit-banner-progress">
+          {course.completedLessons}/{course.totalLessons} · {course.percent}%
+        </div>
+      </div>
+
+      <div className="unit-trail">
+        {course.lessons.map((lesson, i) => (
+          <PathNode
+            key={lesson.id}
+            lesson={lesson}
+            index={i}
+            accent={accent}
+            isGlobalCurrent={lesson.id === currentLessonId}
+            nodeRef={lesson.id === currentLessonId ? currentNodeRef : undefined}
+            onOpen={() => onOpenLesson(lesson.id)}
           />
-        )}
+        ))}
+      </div>
+    </section>
+  );
+}
 
-        {/* ── Money Quests ── */}
-        {quests.length > 0 && (
-          <section className="quests">
-            <h2 className="section-heading">🗺️ Money Quests</h2>
-            <p className="section-sub">Multi-lesson missions with a badge to earn.</p>
-            <div className="quest-grid">
-              {quests.map((q) => (
-                <QuestCard key={q.id} quest={q} onOpenLesson={openLesson} />
-              ))}
-            </div>
-          </section>
-        )}
+function PathNode({
+  lesson,
+  index,
+  accent,
+  isGlobalCurrent,
+  nodeRef,
+  onOpen,
+}: {
+  lesson: LessonView;
+  index: number;
+  accent: string;
+  isGlobalCurrent: boolean;
+  nodeRef?: React.RefObject<HTMLDivElement>;
+  onOpen: () => void;
+}) {
+  const locked = lesson.status === "locked";
+  const completed = lesson.status === "completed";
+  const current = lesson.status === "current";
+  const offset = OFFSETS[index % OFFSETS.length];
 
-        {/* ── Skills mastery ── */}
-        {stats && stats.skills.length > 0 && (
-          <section className="skills">
-            <h2 className="section-heading">🧠 Your Skills</h2>
-            <div className="skill-list">
-              {stats.skills.map((sk) => (
-                <div className="skill-row" key={sk.key}>
-                  <div className="skill-head">
-                    <span className="skill-icon">{sk.icon}</span>
-                    <span className="skill-label">{sk.label}</span>
-                    <span className="skill-pct">{sk.percent}%</span>
-                  </div>
-                  <div className="skill-track">
-                    <div className="skill-fill" style={{ width: `${sk.percent}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+  return (
+    <div className="path-row" ref={nodeRef} style={{ transform: `translateX(${offset * 150}px)` }}>
+      {/* Penny sits beside the single global current node. */}
+      {isGlobalCurrent && <Penny mood="happy" beside />}
+      {current && <div className="path-start-bubble">START</div>}
+      <button
+        className={`path-node ${lesson.status}`}
+        disabled={locked}
+        onClick={onOpen}
+        title={`${lesson.title} — ${lesson.subtitle}`}
+        style={
+          completed || current
+            ? { background: accent, boxShadow: `0 6px 0 ${shade(accent)}` }
+            : undefined
+        }
+      >
+        <span className="path-node-face">{completed ? "★" : locked ? "🔒" : index + 1}</span>
+      </button>
+
+      {completed && lesson.crownLevel > 0 && (
+        <div className="path-crowns" aria-label={`Crown level ${lesson.crownLevel}`}>
+          {Array.from({ length: 5 }).map((_, p) => (
+            <span
+              key={p}
+              className={`path-crown-pip ${p < lesson.crownLevel ? "filled" : ""}`}
+              style={p < lesson.crownLevel ? { background: accent } : undefined}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className={`path-label ${locked ? "muted" : ""}`}>
+        <span className="path-label-title">{lesson.title}</span>
+        <span className="path-label-sub">
+          {completed ? `Complete · 👑 ${lesson.crownLevel}` : `+${lesson.xp} XP`}
+        </span>
       </div>
     </div>
   );
 }
 
-// ── Mascot: Penny the squirrel (acorns → savings → wealth) ──────────────────
-function Penny({ mood }: { mood: "happy" | "celebrate" | "think" | "oops" }) {
+// ── Mascot: Penny the squirrel ──────────────────────────────────────────────
+function Penny({
+  mood,
+  beside = false,
+}: {
+  mood: "happy" | "celebrate" | "think" | "oops";
+  beside?: boolean;
+}) {
   const face =
     mood === "celebrate" ? "🥳" : mood === "think" ? "🤔" : mood === "oops" ? "😬" : "🐿️";
   const line =
     mood === "celebrate"
       ? "Nut streak secured! 🌰"
       : mood === "think"
-      ? "Hmm, let's think this through…"
+      ? "Hmm, let's think…"
       : mood === "oops"
-      ? "Oops — every acorn teaches us something."
-      : "Let's grow those acorns!";
+      ? "Every acorn teaches us something."
+      : "You're here! Let's go 🌰";
   return (
-    <div className={`penny penny-${mood}`}>
+    <div className={`penny ${beside ? "penny-beside" : ""} penny-${mood}`}>
       <div className="penny-face">{face}</div>
       <div className="penny-speech">{line}</div>
     </div>
@@ -271,12 +391,7 @@ function DailyChallengeCard({ challenge }: { challenge: DailyChallenge }) {
             else if (isPicked) cls += " notbest";
           }
           return (
-            <button
-              key={i}
-              className={cls}
-              disabled={picked !== null}
-              onClick={() => setPicked(i)}
-            >
+            <button key={i} className={cls} disabled={picked !== null} onClick={() => setPicked(i)}>
               <span className="daily-choice-label">{o.label}</span>
               {picked !== null && <span className="daily-choice-result">{o.result}</span>}
             </button>
@@ -339,106 +454,6 @@ function QuestCard({
           {quest.completedSteps === 0 ? "Start quest" : "Continue"}: {next.title}
         </button>
       ) : null}
-    </div>
-  );
-}
-
-// Serpentine offsets so the path winds left → center → right → center …
-const OFFSETS = [0, 0.34, 0.5, 0.34, 0, -0.34, -0.5, -0.34];
-
-function TopicPath({
-  course,
-  accent,
-  onOpenLesson,
-}: {
-  course: CourseView;
-  accent: string;
-  onOpenLesson: (id: string) => void;
-}) {
-  return (
-    <section className="topic-path">
-      <div className="topic-path-header" style={{ background: accent }}>
-        <span className="topic-path-icon">{course.icon}</span>
-        <div>
-          <div className="topic-path-title">{course.title}</div>
-          <div className="topic-path-sub">
-            {course.completedLessons}/{course.totalLessons} lessons · {course.percent}%
-          </div>
-        </div>
-      </div>
-
-      <div className="topic-trail">
-        {course.lessons.map((lesson, i) => (
-          <PathNode
-            key={lesson.id}
-            lesson={lesson}
-            index={i}
-            accent={accent}
-            onOpen={() => onOpenLesson(lesson.id)}
-          />
-        ))}
-        <div className="topic-trail-goal">
-          <span className="topic-trail-goal-icon">🏆</span>
-          <span>Finish the path</span>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function PathNode({
-  lesson,
-  index,
-  accent,
-  onOpen,
-}: {
-  lesson: LessonView;
-  index: number;
-  accent: string;
-  onOpen: () => void;
-}) {
-  const locked = lesson.status === "locked";
-  const completed = lesson.status === "completed";
-  const current = lesson.status === "current";
-  const offset = OFFSETS[index % OFFSETS.length];
-
-  return (
-    <div className="path-row" style={{ transform: `translateX(${offset * 150}px)` }}>
-      {current && <div className="path-start-bubble">START</div>}
-      <button
-        className={`path-node ${lesson.status}`}
-        disabled={locked}
-        onClick={onOpen}
-        title={`${lesson.title} — ${lesson.subtitle}`}
-        style={
-          completed || current
-            ? { background: accent, boxShadow: `0 6px 0 ${shade(accent)}` }
-            : undefined
-        }
-      >
-        <span className="path-node-face">
-          {completed ? "★" : locked ? "🔒" : index + 1}
-        </span>
-      </button>
-
-      {completed && lesson.crownLevel > 0 && (
-        <div className="path-crowns" aria-label={`Crown level ${lesson.crownLevel}`}>
-          {Array.from({ length: 5 }).map((_, p) => (
-            <span
-              key={p}
-              className={`path-crown-pip ${p < lesson.crownLevel ? "filled" : ""}`}
-              style={p < lesson.crownLevel ? { background: accent } : undefined}
-            />
-          ))}
-        </div>
-      )}
-
-      <div className={`path-label ${locked ? "muted" : ""}`}>
-        <span className="path-label-title">{lesson.title}</span>
-        <span className="path-label-sub">
-          {completed ? `Complete · 👑 ${lesson.crownLevel}` : `+${lesson.xp} XP`}
-        </span>
-      </div>
     </div>
   );
 }
