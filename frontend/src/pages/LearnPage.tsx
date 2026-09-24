@@ -4,17 +4,26 @@ import { api } from "../api/client";
 import {
   CourseView,
   DailyChallenge,
+  DailyChallengeResult,
   DailyLesson,
   LearnStats,
   LessonView,
   QuestView,
 } from "../api/types";
 
-// Difficulty drives each unit's accent color.
+// Difficulty tier drives each unit's accent color.
 const LEVEL_COLORS: Record<string, string> = {
   Beginner: "#7fb5ff",
   Intermediate: "#c792ea",
   Advanced: "#ff7a3c",
+};
+
+// Display names for tiers — the app calls them Foundations / Builder / Mastery
+// everywhere so the label matches its color (the API's raw level is the key).
+const LEVEL_LABEL: Record<string, string> = {
+  Beginner: "Foundations",
+  Intermediate: "Builder",
+  Advanced: "Mastery",
 };
 
 // Tier "directions" used for the jump-to-section chips. The path itself is one
@@ -260,7 +269,7 @@ function UnitSection({
     <section className="unit-section">
       {/* Full-width colored unit-header banner (Duolingo style). */}
       <div className="unit-banner" ref={sectionRef} style={{ background: accent }}>
-        <div className="unit-banner-eyebrow">{course.level}</div>
+        <div className="unit-banner-eyebrow">{LEVEL_LABEL[course.level] ?? course.level}</div>
         <div className="unit-banner-title">
           <span className="unit-banner-icon">{course.icon}</span>
           {course.title}
@@ -327,21 +336,27 @@ function PathNode({
       </button>
 
       {completed && lesson.crownLevel > 0 && (
-        <div className="path-crowns" aria-label={`Crown level ${lesson.crownLevel}`}>
-          {Array.from({ length: 5 }).map((_, p) => (
-            <span
-              key={p}
-              className={`path-crown-pip ${p < lesson.crownLevel ? "filled" : ""}`}
-              style={p < lesson.crownLevel ? { background: accent } : undefined}
-            />
-          ))}
+        <div
+          className={`crown-badge ${lesson.crownLevel >= 5 ? "maxed" : ""}`}
+          style={{ borderColor: accent, color: accent }}
+          title={
+            lesson.crownLevel >= 5
+              ? "Crown maxed (level 5 of 5)"
+              : `Crown level ${lesson.crownLevel} of 5 — replay to level up`
+          }
+        >
+          👑 {lesson.crownLevel}/5
         </div>
       )}
 
       <div className={`path-label ${locked ? "muted" : ""}`}>
         <span className="path-label-title">{lesson.title}</span>
         <span className="path-label-sub">
-          {completed ? `Complete · 👑 ${lesson.crownLevel}` : `+${lesson.xp} XP`}
+          {completed
+            ? lesson.crownLevel >= 5
+              ? "Mastered 👑"
+              : "Complete"
+            : `+${lesson.xp} XP`}
         </span>
       </div>
     </div>
@@ -375,8 +390,36 @@ function Penny({
 }
 
 // ── Daily Money Challenge card ──────────────────────────────────────────────
+// Grades against the user's actual pick and persists server-side, so the
+// resolved state survives navigation and XP is only credited on a correct
+// first answer (once per day).
 function DailyChallengeCard({ challenge }: { challenge: DailyChallenge }) {
-  const [picked, setPicked] = useState<number | null>(null);
+  // Seed from the persisted state so a returning user sees their result.
+  const [picked, setPicked] = useState<number | null>(challenge.picked);
+  const [resolved, setResolved] = useState<boolean>(challenge.completed);
+  const [wasCorrect, setWasCorrect] = useState<boolean | null>(challenge.wasCorrect);
+  const [xp, setXp] = useState<number>(challenge.xpAwarded);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function pick(i: number) {
+    if (resolved || submitting) return;
+    setPicked(i);
+    setSubmitting(true);
+    try {
+      const res = await api.post<DailyChallengeResult>("/learn/daily-challenge/complete", {
+        choice: i,
+      });
+      setResolved(true);
+      setWasCorrect(res.correct);
+      setXp(res.xpEarned);
+    } catch {
+      // Roll back so they can try again on a transient failure.
+      setPicked(null);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <div className="daily-challenge">
       <div className="daily-challenge-eyebrow">💰 DAILY MONEY CHALLENGE</div>
@@ -386,22 +429,29 @@ function DailyChallengeCard({ challenge }: { challenge: DailyChallenge }) {
           const isPicked = picked === i;
           const isBest = i === challenge.best;
           let cls = "daily-choice";
-          if (picked !== null) {
+          if (resolved) {
+            // Highlight the best answer green; if the user picked a non-best
+            // option, mark their pick as wrong.
             if (isBest) cls += " best";
-            else if (isPicked) cls += " notbest";
+            if (isPicked && !isBest) cls += " notbest";
+          } else if (isPicked) {
+            cls += " selected";
           }
           return (
-            <button key={i} className={cls} disabled={picked !== null} onClick={() => setPicked(i)}>
+            <button key={i} className={cls} disabled={resolved || submitting} onClick={() => pick(i)}>
               <span className="daily-choice-label">{o.label}</span>
-              {picked !== null && <span className="daily-choice-result">{o.result}</span>}
+              {resolved && <span className="daily-choice-result">{o.result}</span>}
             </button>
           );
         })}
       </div>
-      {picked !== null && (
+      {resolved && (
         <div className="daily-takeaway">
+          <span className={`daily-verdict ${wasCorrect ? "right" : "wrong"}`}>
+            {wasCorrect ? "✓ Nice call!" : "Not the best pick"}
+          </span>
           <strong>💡 {challenge.takeaway}</strong>
-          <span className="daily-xp">+25 XP</span>
+          {xp > 0 && <span className="daily-xp">+{xp} XP</span>}
         </div>
       )}
     </div>
@@ -416,7 +466,12 @@ function QuestCard({
   quest: QuestView;
   onOpenLesson: (id: string) => void;
 }) {
-  const next = quest.steps.find((s) => s.current) ?? quest.steps.find((s) => !s.completed);
+  // The next actionable step is the first startable (current) one; the server
+  // only marks a step "current" when it's genuinely unlocked.
+  const next = quest.steps.find((s) => s.current);
+  // If nothing is startable yet but the quest isn't done, its next lesson is
+  // gated behind earlier course lessons.
+  const gated = !quest.complete && !next;
   return (
     <div className={`quest-card ${quest.complete ? "complete" : ""}`} style={{ borderColor: quest.color }}>
       <div className="quest-card-head">
@@ -433,9 +488,11 @@ function QuestCard({
         {quest.steps.map((s) => (
           <span
             key={s.lessonId}
-            className={`quest-step ${s.completed ? "done" : s.current ? "current" : ""}`}
+            className={`quest-step ${
+              s.completed ? "done" : s.current ? "current" : s.locked ? "locked" : ""
+            }`}
             style={s.completed ? { background: quest.color } : undefined}
-            title={s.title}
+            title={`${s.title}${s.locked ? " (locked — finish earlier lessons first)" : ""}`}
           />
         ))}
       </div>
@@ -443,17 +500,22 @@ function QuestCard({
         {quest.completedSteps}/{quest.totalSteps} steps · {quest.percent}%
       </div>
 
-      {quest.complete ? (
-        <div className="quest-badge">{quest.badge} unlocked!</div>
-      ) : next ? (
-        <button
-          className="btn btn-sm quest-cta"
-          style={{ background: quest.color }}
-          onClick={() => onOpenLesson(next.lessonId)}
-        >
-          {quest.completedSteps === 0 ? "Start quest" : "Continue"}: {next.title}
-        </button>
-      ) : null}
+      {/* CTA pinned to the bottom (see .quest-card / .quest-cta CSS). */}
+      <div className="quest-foot">
+        {quest.complete ? (
+          <div className="quest-badge">{quest.badge} unlocked!</div>
+        ) : next ? (
+          <button
+            className="btn btn-sm quest-cta"
+            style={{ background: quest.color }}
+            onClick={() => onOpenLesson(next.lessonId)}
+          >
+            {quest.completedSteps === 0 ? "Start" : "Continue"}: {next.title}
+          </button>
+        ) : gated ? (
+          <div className="quest-gated">🔒 Finish earlier lessons to unlock the next step</div>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -39,6 +39,25 @@ model User {
   lessonProgress LessonProgress[]
   coachMessages  CoachMessage[]
   itemMemories   ItemMemory[]
+  dailyChallengeLogs DailyChallengeLog[]
+}
+
+// One row per (user, day) recording that the user answered that day's Daily
+// Money Challenge. Persisted so the result survives navigation, can't be
+// farmed for repeat XP, and can be shown as "already done today".
+model DailyChallengeLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day         String   // YYYY-MM-DD
+  challengeId String
+  choice      Int      // the option index the user picked
+  correct     Boolean  // whether that pick was the best answer
+  xpEarned    Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, day])
+  @@index([userId])
 }
 
 // A single message in the user's AI Coach conversation. Persisted so the chat

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { Quote } from "../api/types";
 import { formatPercent, formatPrice, gainClass } from "../lib/format";
@@ -38,7 +38,10 @@ export default function WatchlistPage() {
 
       {items.length === 0 ? (
         <div className="card empty">
-          Your watchlist is empty. Add symbols from any asset page.
+          Your watchlist is empty. To begin adding symbols, open an asset from the{" "}
+          <Link to="/market" className="inline-link">Market</Link> or{" "}
+          <Link to="/portfolio" className="inline-link">Portfolio</Link> and tap “Add to
+          watchlist”.
         </div>
       ) : (
         <div className="card" style={{ padding: 0 }}>

@@ -4,6 +4,7 @@ import { asyncHandler, requireAuth, AuthedRequest } from "../middleware/authMidd
 import {
   completeLesson,
   completeReview,
+  completeDailyChallenge,
   getCourses,
   getDailyChallenge,
   getDailyLesson,
@@ -54,11 +55,23 @@ learnRouter.get(
   })
 );
 
-// Today's daily money challenge (same for everyone on a given day).
+// Today's daily money challenge + this user's completion state for today.
 learnRouter.get(
   "/daily-challenge",
-  asyncHandler(async (_req: AuthedRequest, res) => {
-    res.json(getDailyChallenge());
+  asyncHandler(async (req: AuthedRequest, res) => {
+    res.json(await getDailyChallenge(req.userId!));
+  })
+);
+
+// Submit an answer to today's challenge (idempotent per day; XP only on a
+// correct first pick).
+const dailyChallengeSchema = z.object({ choice: z.number().int().min(0).max(10) });
+learnRouter.post(
+  "/daily-challenge/complete",
+  asyncHandler(async (req: AuthedRequest, res) => {
+    const parsed = dailyChallengeSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+    res.json(await completeDailyChallenge(req.userId!, parsed.data.choice));
   })
 );
 

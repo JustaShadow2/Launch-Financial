@@ -1460,22 +1460,27 @@ select:focus {
 /* Scenario / event framing boxes above a prompt. */
 .scenario-box {
   margin-top: 14px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border-radius: var(--radius-sm);
   background: var(--surface-2);
-  border: 1px solid var(--border-soft);
-  font-size: 14px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--text-dim);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
   line-height: 1.5;
 }
 .event-box {
-  margin-top: 10px;
-  padding: 12px 14px;
+  margin-top: 12px;
+  padding: 14px 16px;
   border-radius: var(--radius-sm);
   background: rgba(255, 122, 60, 0.12);
   border: 1px solid rgba(255, 122, 60, 0.4);
+  border-left: 4px solid #ff7a3c;
   color: #ffb184;
   font-weight: 700;
   font-size: 15px;
+  line-height: 1.5;
 }
 
 /* Type pills on interactive items. */
@@ -1663,13 +1668,18 @@ select:focus {
 .daily-takeaway {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px 12px;
   margin-top: 14px;
   padding: 12px 14px;
   border-radius: var(--radius-sm);
   background: var(--surface-2);
   font-size: 14px;
+}
+.daily-takeaway strong {
+  flex: 1;
+  min-width: 180px;
 }
 .daily-xp {
   color: var(--gain);
@@ -2130,4 +2140,77 @@ select:focus {
   font-weight: 700;
   font-size: 14px;
   max-width: 320px;
+}
+
+/* ── Feedback-batch fixes ────────────────────────────────────────────────── */
+
+/* Clear single crown badge on a completed node (replaces ambiguous 5 pips). */
+.crown-badge {
+  margin-top: 8px;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid;
+  font-size: 12px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.04);
+}
+.crown-badge.maxed {
+  background: rgba(255, 203, 107, 0.14);
+}
+
+/* Quest cards: pin the CTA to the bottom so middle-column buttons align. */
+.quest-card {
+  display: flex;
+  flex-direction: column;
+}
+.quest-foot {
+  margin-top: auto;
+  padding-top: 4px;
+}
+.quest-cta {
+  width: 100%;
+  color: #04140d;
+  font-weight: 800;
+  border: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.quest-gated {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.quest-step.locked {
+  background: var(--border);
+  opacity: 0.5;
+}
+
+/* Daily challenge: selected (pre-submit) + verdict after resolving. */
+.daily-choice.selected {
+  border-color: var(--accent);
+}
+.daily-verdict {
+  font-weight: 800;
+}
+.daily-verdict.right {
+  color: var(--gain);
+}
+.daily-verdict.wrong {
+  color: var(--loss);
+}
+
+/* Inline text links (e.g. watchlist empty state). */
+.inline-link {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.inline-link:hover {
+  filter: brightness(1.1);
 }

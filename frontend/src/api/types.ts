@@ -285,6 +285,7 @@ export interface QuestStepView {
   title: string;
   completed: boolean;
   current: boolean;
+  locked: boolean; // earlier lessons in its course aren't done yet
 }
 
 export interface QuestView {
@@ -308,5 +309,19 @@ export interface DailyChallenge {
   question: string;
   options: { label: string; result: string }[];
   best: number;
+  takeaway: string;
+  // Per-user completion state for today (persisted server-side).
+  completed: boolean;
+  picked: number | null;
+  wasCorrect: boolean | null;
+  xpAwarded: number;
+}
+
+// Response from POST /learn/daily-challenge/complete.
+export interface DailyChallengeResult {
+  alreadyDone: boolean;
+  correct: boolean;
+  best: number;
+  xpEarned: number;
   takeaway: string;
 }

@@ -231,9 +231,66 @@ export async function getStats(userId: string): Promise<LearnStats> {
   };
 }
 
-/** Today's daily money challenge (rotates by calendar day). */
-export function getDailyChallenge() {
-  return challengeForDay(dayString());
+const DAILY_CHALLENGE_XP = 25;
+
+/**
+ * Today's daily money challenge plus this user's completion state for today.
+ * If they've already answered today, we return what they picked and whether it
+ * was correct so the UI can show the resolved state instead of resetting.
+ */
+export async function getDailyChallenge(userId: string) {
+  const today = dayString();
+  const challenge = challengeForDay(today);
+  const log = await prisma.dailyChallengeLog.findUnique({
+    where: { userId_day: { userId, day: today } },
+  });
+  return {
+    ...challenge,
+    completed: Boolean(log),
+    picked: log?.choice ?? null,
+    wasCorrect: log?.correct ?? null,
+    xpAwarded: log?.xpEarned ?? 0,
+  };
+}
+
+/**
+ * Record the user's answer to today's challenge. Idempotent per day: a second
+ * submission returns the already-stored result and awards no further XP, so it
+ * can't be farmed. XP is only granted when the *first* pick is correct.
+ */
+export async function completeDailyChallenge(userId: string, choice: number) {
+  const today = dayString();
+  const challenge = challengeForDay(today);
+
+  const existing = await prisma.dailyChallengeLog.findUnique({
+    where: { userId_day: { userId, day: today } },
+  });
+  if (existing) {
+    return {
+      alreadyDone: true,
+      correct: existing.correct,
+      best: challenge.best,
+      xpEarned: 0,
+      takeaway: challenge.takeaway,
+    };
+  }
+
+  const correct = choice === challenge.best;
+  const xpEarned = correct ? DAILY_CHALLENGE_XP : 0;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.dailyChallengeLog.create({
+      data: { userId, day: today, challengeId: challenge.id, choice, correct, xpEarned },
+    });
+    if (xpEarned > 0) {
+      await tx.user.update({
+        where: { id: userId },
+        data: { xp: { increment: xpEarned } },
+      });
+    }
+  });
+
+  return { alreadyDone: false, correct, best: challenge.best, xpEarned, takeaway: challenge.takeaway };
 }
 
 /**
@@ -555,8 +612,15 @@ function computeXp(
   firstCompletion: boolean,
   total: number,
   firstTryCorrect: number,
-  durationSeconds: number | undefined
+  durationSeconds: number | undefined,
+  priorCrown: number
 ): { base: number; accuracyBonus: number; speedBonus: number; total: number } {
+  // Crown caps XP: once a node is maxed at level 5, further replays earn no XP
+  // (they're still allowed for practice/review, but the crown is the ceiling).
+  if (priorCrown >= 5) {
+    return { base: 0, accuracyBonus: 0, speedBonus: 0, total: 0 };
+  }
+
   const base = firstCompletion ? baseXp : Math.round(baseXp * 0.25);
 
   const accuracy = total > 0 ? firstTryCorrect / total : 0;
@@ -653,7 +717,14 @@ export async function completeLesson({
   const newCrown = Math.min(5, priorCrown + 1); // level up the node, cap at 5
   const leveledUp = newCrown > priorCrown;
 
-  const xp = computeXp(loc.lesson.xp, firstCompletion, total, firstTryCorrect, durationSeconds);
+  const xp = computeXp(
+    loc.lesson.xp,
+    firstCompletion,
+    total,
+    firstTryCorrect,
+    durationSeconds,
+    priorCrown
+  );
 
   let freezeEarned = false;
 
