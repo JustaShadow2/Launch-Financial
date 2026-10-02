@@ -3,14 +3,14 @@ import { NavLink, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const links = [
-  { to: "/", label: "Home", end: true },
-  { to: "/portfolio", label: "Portfolio" },
-  { to: "/market", label: "Market" },
-  { to: "/learn", label: "Learn" },
-  { to: "/coach", label: "Coach" },
-  { to: "/watchlist", label: "Watchlist" },
-  { to: "/activity", label: "Activity" },
-  { to: "/funding", label: "Transfer" },
+  { to: "/", label: "Home", icon: "🏠", end: true },
+  { to: "/portfolio", label: "Portfolio", icon: "📊" },
+  { to: "/market", label: "Market", icon: "📈" },
+  { to: "/learn", label: "Learn", icon: "🎓" },
+  { to: "/coach", label: "Coach", icon: "🧑‍🏫" },
+  { to: "/watchlist", label: "Watchlist", icon: "⭐" },
+  { to: "/activity", label: "Activity", icon: "📄" },
+  { to: "/funding", label: "Transfer", icon: "💸" },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -28,7 +28,10 @@ export function Layout({ children }: { children: ReactNode }) {
             end={l.end}
             className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
           >
-            {l.label}
+            <span className="nav-icon" aria-hidden>
+              {l.icon}
+            </span>
+            <span className="nav-label">{l.label}</span>
           </NavLink>
         ))}
         <div className="sidebar-footer">

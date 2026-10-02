@@ -317,7 +317,11 @@ function PathNode({
   const offset = OFFSETS[index % OFFSETS.length];
 
   return (
-    <div className="path-row" ref={nodeRef} style={{ transform: `translateX(${offset * 150}px)` }}>
+    <div
+      className="path-row"
+      ref={nodeRef}
+      style={{ transform: `translateX(calc(${offset} * var(--path-amp, 150px)))` }}
+    >
       {/* Penny sits beside the single global current node. */}
       {isGlobalCurrent && <Penny mood="happy" beside />}
       {current && <div className="path-start-bubble">START</div>}

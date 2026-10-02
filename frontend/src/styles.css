@@ -109,6 +109,13 @@ button {
   font-weight: 500;
   font-size: 15px;
   transition: background 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.nav-icon {
+  font-size: 17px;
+  line-height: 1;
 }
 .nav-link:hover {
   background: var(--surface-2);
@@ -2213,4 +2220,222 @@ select:focus {
 }
 .inline-link:hover {
   filter: brightness(1.1);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   MOBILE  —  reflow the whole app for narrow screens. The desktop sidebar
+   becomes a fixed bottom tab bar; grids collapse; tables scroll; the Learn
+   path tightens so the winding nodes never overflow. Dark theme + card and
+   gamified design principles are preserved — only the layout adapts.
+   ════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 760px) {
+  /* ── Shell: stack, and turn the sidebar into a bottom tab bar ── */
+  .app-shell {
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  .sidebar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    gap: 0;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+    border-right: none;
+    border-top: 1px solid var(--border);
+    overflow-x: auto;
+    z-index: 50;
+    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.35);
+  }
+  /* Hide the brand wordmark and the profile/footer block in the tab bar. */
+  .sidebar .brand,
+  .sidebar-footer {
+    display: none;
+  }
+  /* Each nav item: stacked icon over tiny label, equal width. */
+  .nav-link {
+    flex: 1 0 auto;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 56px;
+    padding: 6px 4px;
+    font-size: 10px;
+    text-align: center;
+    border-radius: var(--radius-xs);
+  }
+  .nav-icon {
+    font-size: 20px;
+  }
+  .nav-label {
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .nav-link.active {
+    color: var(--accent);
+    background: transparent;
+  }
+
+  /* Main content: full width, room above the bottom bar. */
+  .main {
+    padding: 18px 16px calc(78px + env(safe-area-inset-bottom, 0px));
+    max-width: 100%;
+  }
+  .page-title {
+    font-size: 22px;
+  }
+  .page-sub {
+    margin-bottom: 16px;
+  }
+
+  /* ── Cards / grids ── */
+  .card {
+    padding: 16px;
+    border-radius: var(--radius);
+  }
+  .grid-3,
+  .grid-2 {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .grid-3 > .card,
+  .grid-2 > .card {
+    min-height: 86px;
+    padding: 14px;
+  }
+  .stat-value {
+    font-size: 22px;
+  }
+  .stat-value.big {
+    font-size: 32px;
+  }
+
+  /* ── Tables: let wide tables scroll horizontally instead of overflowing ── */
+  .card > table,
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+  th,
+  td {
+    padding: 10px 10px;
+    font-size: 13px;
+  }
+
+  /* Segmented controls scroll if they overflow (account switchers etc). */
+  .seg {
+    display: flex;
+    width: 100%;
+    overflow-x: auto;
+  }
+  .seg button {
+    flex: 0 0 auto;
+  }
+
+  /* ── Auth screens ── */
+  .auth-card {
+    padding: 24px 20px;
+  }
+
+  /* ── Learn: HUD, tabs, path ── */
+  .learn-hud {
+    gap: 12px;
+    padding: 10px 4px;
+  }
+  .hud-stat {
+    font-size: 15px;
+    gap: 5px;
+  }
+  .hud-icon {
+    font-size: 17px;
+  }
+  .learn-tabs {
+    top: 46px;
+  }
+  .learn-tab {
+    font-size: 13px;
+    padding: 9px 10px;
+  }
+
+  /* Winding path: shrink nodes + offset so the serpentine fits a phone. */
+  .path-node {
+    width: 58px;
+    height: 58px;
+  }
+  .path-node-face {
+    font-size: 22px;
+  }
+  .unit-trail {
+    gap: 22px;
+    padding: 28px 0 8px;
+  }
+  .path-label {
+    max-width: 170px;
+  }
+  /* Shrink the serpentine amplitude so a pushed node + its label never forces
+     horizontal scroll on a phone (desktop default is 150px). */
+  .unit-trail {
+    --path-amp: 64px;
+  }
+  .path-row {
+    max-width: 100%;
+  }
+
+  /* Quests / skills / daily challenge → single column. */
+  .quest-grid,
+  .skill-list {
+    grid-template-columns: 1fr;
+  }
+  .daily-challenge-options {
+    grid-template-columns: 1fr;
+  }
+  .daily-challenge {
+    padding: 16px;
+  }
+
+  /* Lesson player + coach fit the viewport. */
+  .lesson-wrap {
+    max-width: 100%;
+  }
+  .coach-chat {
+    height: calc(100dvh - 260px);
+    min-height: 320px;
+  }
+  .coach-bubble {
+    max-width: 88%;
+  }
+
+  /* Section headings a touch smaller. */
+  .section-heading {
+    font-size: 18px;
+  }
+}
+
+/* ── Smallest phones ── */
+@media (max-width: 420px) {
+  .grid-3,
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+  .nav-label {
+    display: none; /* icons only when space is very tight */
+  }
+  .nav-link {
+    min-width: 44px;
+  }
+  .path-node {
+    width: 52px;
+    height: 52px;
+  }
+  .unit-trail {
+    --path-amp: 44px;
+  }
+  .hud-stat-progress .hud-value {
+    font-size: 13px;
+  }
 }
