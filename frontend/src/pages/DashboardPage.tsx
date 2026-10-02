@@ -83,7 +83,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <div className="seg mt-16">
+        <div className="seg seg-range mt-16">
           {RANGES.map((r) => (
             <button key={r} className={range === r ? "active" : ""} onClick={() => setRange(r)}>
               {r}

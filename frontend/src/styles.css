@@ -441,6 +441,16 @@ select:focus {
   background: var(--surface-2);
   color: var(--text);
 }
+/* Chart range switcher: hug its own content and never stretch full-width, even
+   on mobile (where the generic .seg goes width:100% for account switchers). */
+.seg-range {
+  display: inline-flex;
+  width: auto;
+  max-width: 100%;
+}
+.seg-range button {
+  padding: 8px 16px;
+}
 
 .tag-buy {
   color: var(--gain);
@@ -2335,6 +2345,14 @@ select:focus {
   }
   .seg button {
     flex: 0 0 auto;
+  }
+  /* …but the chart range switcher stays compact and centered, not stretched. */
+  .seg-range {
+    display: inline-flex;
+    width: auto;
+  }
+  .seg-range button {
+    padding: 8px 12px;
   }
 
   /* ── Auth screens ── */

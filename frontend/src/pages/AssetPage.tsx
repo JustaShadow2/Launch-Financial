@@ -78,7 +78,7 @@ export default function AssetPage() {
         </button>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: "1.6fr 1fr", marginTop: 20 }}>
+      <div className="grid" style={{ gridTemplateColumns: "1fr", marginTop: 20 }}>
         <div className="card">
           <div className="row" style={{ gap: 10, alignItems: "baseline" }}>
             <div className="stat-value">{formatPrice(quote.price)}</div>
@@ -94,7 +94,7 @@ export default function AssetPage() {
               <PriceChart candles={candles} positive={positive} height={260} />
             </div>
           )}
-          <div className="seg mt-16">
+          <div className="seg seg-range mt-16">
             {RANGES.map((r) => (
               <button key={r} className={range === r ? "active" : ""} onClick={() => setRange(r)}>
                 {r}
