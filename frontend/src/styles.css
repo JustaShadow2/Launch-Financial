@@ -81,6 +81,86 @@ button {
   min-height: 100vh;
 }
 
+/* The mobile top bar is hidden on desktop (the sidebar is shown). */
+.topbar {
+  display: none;
+}
+
+/* Full-screen navigation drawer (mobile). Only reachable via the mobile
+   hamburger, but styled here so it renders correctly whenever it's open. */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  justify-content: flex-end;
+  animation: drawer-fade 0.15s ease;
+}
+.drawer {
+  width: min(84vw, 340px);
+  height: 100%;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  animation: drawer-slide 0.18s ease;
+}
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 4px 14px;
+  border-bottom: 1px solid var(--border-soft);
+  margin-bottom: 10px;
+}
+.drawer-close {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+}
+.drawer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+/* Larger, unambiguous tap targets inside the drawer (fixes mis-taps). */
+.drawer .nav-link {
+  padding: 14px 14px;
+  font-size: 16px;
+  border-radius: var(--radius-sm);
+}
+.drawer .nav-icon {
+  font-size: 22px;
+}
+.drawer .nav-link.active {
+  background: var(--surface-2);
+  color: var(--accent);
+}
+@keyframes drawer-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes drawer-slide {
+  from { transform: translateX(16px); opacity: 0.6; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .drawer-overlay,
+  .drawer {
+    animation: none;
+  }
+}
+
 .sidebar {
   width: 240px;
   background: var(--surface);
@@ -2239,59 +2319,46 @@ select:focus {
    gamified design principles are preserved — only the layout adapts.
    ════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 760px) {
-  /* ── Shell: stack, and turn the sidebar into a bottom tab bar ── */
+  /* ── Shell: hide the desktop sidebar; show a top bar + hamburger drawer ── */
   .app-shell {
     flex-direction: column;
     min-height: 100vh;
   }
   .sidebar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    top: auto;
-    width: 100%;
-    height: auto;
-    flex-direction: row;
-    gap: 0;
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
-    border-right: none;
-    border-top: 1px solid var(--border);
-    overflow-x: auto;
-    z-index: 50;
-    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.35);
-  }
-  /* Hide the brand wordmark and the profile/footer block in the tab bar. */
-  .sidebar .brand,
-  .sidebar-footer {
     display: none;
   }
-  /* Each nav item: stacked icon over tiny label, equal width. */
-  .nav-link {
-    flex: 1 0 auto;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 56px;
-    padding: 6px 4px;
-    font-size: 10px;
-    text-align: center;
-    border-radius: var(--radius-xs);
+
+  /* Slim fixed top bar: brand + hamburger. */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    padding: 10px 16px calc(10px);
+    padding-top: calc(10px + env(safe-area-inset-top, 0px));
+    background: rgba(13, 17, 23, 0.92);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
   }
-  .nav-icon {
+  .topbar .brand {
+    padding: 0;
+    font-size: 18px;
+  }
+  .topbar-menu-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
     font-size: 20px;
-  }
-  .nav-label {
-    font-size: 10px;
-    font-weight: 600;
-  }
-  .nav-link.active {
-    color: var(--accent);
-    background: transparent;
+    line-height: 1;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
   }
 
-  /* Main content: full width, room above the bottom bar. */
+  /* Main content: full width; the top bar is in normal flow so no top pad. */
   .main {
-    padding: 18px 16px calc(78px + env(safe-area-inset-bottom, 0px));
+    padding: 16px 16px 32px;
     max-width: 100%;
   }
   .page-title {
@@ -2360,10 +2427,13 @@ select:focus {
     padding: 24px 20px;
   }
 
-  /* ── Learn: HUD, tabs, path ── */
+  /* ── Learn: HUD, tabs, path ──
+     The mobile top bar is sticky at top:0, so the Learn HUD and tabs must
+     stick *below* it (≈56px) rather than overlapping it. */
   .learn-hud {
     gap: 12px;
     padding: 10px 4px;
+    top: 56px;
   }
   .hud-stat {
     font-size: 15px;
@@ -2373,7 +2443,7 @@ select:focus {
     font-size: 17px;
   }
   .learn-tabs {
-    top: 46px;
+    top: 104px;
   }
   .learn-tab {
     font-size: 13px;
@@ -2439,12 +2509,6 @@ select:focus {
   .grid-3,
   .grid-2 {
     grid-template-columns: 1fr;
-  }
-  .nav-label {
-    display: none; /* icons only when space is very tight */
-  }
-  .nav-link {
-    min-width: 44px;
   }
   .path-node {
     width: 52px;
