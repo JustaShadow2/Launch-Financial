@@ -48,15 +48,25 @@ export default function WatchlistPage() {
           <table>
             <thead>
               <tr>
+                <th style={{ width: 44 }}></th>
                 <th>Symbol</th>
                 <th>Price</th>
                 <th>Today</th>
-                <th></th>
               </tr>
             </thead>
             <tbody>
               {items.map((q) => (
                 <tr key={q.symbol} className="clickable" onClick={() => navigate(`/asset/${q.symbol}`)}>
+                  <td style={{ paddingRight: 0 }}>
+                    <button
+                      className="star-btn on"
+                      aria-label="Remove from watchlist"
+                      title="Remove from watchlist"
+                      onClick={(e) => remove(q.symbol, e)}
+                    >
+                      ★
+                    </button>
+                  </td>
                   <td>
                     <div style={{ fontWeight: 600 }}>{q.symbol}</div>
                     <div className="muted" style={{ fontSize: 13 }}>
@@ -65,11 +75,6 @@ export default function WatchlistPage() {
                   </td>
                   <td>{formatPrice(q.price)}</td>
                   <td className={gainClass(q.change)}>{formatPercent(q.changePercent)}</td>
-                  <td style={{ textAlign: "right" }}>
-                    <button className="btn btn-ghost btn-sm" onClick={(e) => remove(q.symbol, e)}>
-                      Remove
-                    </button>
-                  </td>
                 </tr>
               ))}
             </tbody>

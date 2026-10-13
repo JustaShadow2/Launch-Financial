@@ -18,35 +18,56 @@ const CATEGORY_LABELS: Record<string, string> = {
 function QuoteTable({
   quotes,
   onOpen,
+  isWatched,
+  onToggleWatch,
 }: {
   quotes: Quote[];
   onOpen: (symbol: string) => void;
+  isWatched: (symbol: string) => boolean;
+  onToggleWatch: (symbol: string) => void;
 }) {
   return (
     <div className="card" style={{ padding: 0 }}>
       <table>
         <thead>
           <tr>
+            <th style={{ width: 44 }}></th>
             <th>Symbol</th>
             <th>Price</th>
             <th>Today</th>
           </tr>
         </thead>
         <tbody>
-          {quotes.map((q) => (
-            <tr key={q.symbol} className="clickable" onClick={() => onOpen(q.symbol)}>
-              <td>
-                <div style={{ fontWeight: 600 }}>{q.symbol}</div>
-                <div className="muted" style={{ fontSize: 13 }}>
-                  {q.name}
-                </div>
-              </td>
-              <td>{formatPrice(q.price)}</td>
-              <td className={gainClass(q.change)}>
-                {formatPrice(q.change)} ({formatPercent(q.changePercent)})
-              </td>
-            </tr>
-          ))}
+          {quotes.map((q) => {
+            const watched = isWatched(q.symbol);
+            return (
+              <tr key={q.symbol} className="clickable" onClick={() => onOpen(q.symbol)}>
+                <td style={{ paddingRight: 0 }}>
+                  <button
+                    className={`star-btn ${watched ? "on" : ""}`}
+                    aria-label={watched ? "Remove from watchlist" : "Add to watchlist"}
+                    title={watched ? "Remove from watchlist" : "Add to watchlist"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleWatch(q.symbol);
+                    }}
+                  >
+                    {watched ? "★" : "☆"}
+                  </button>
+                </td>
+                <td>
+                  <div style={{ fontWeight: 600 }}>{q.symbol}</div>
+                  <div className="muted" style={{ fontSize: 13 }}>
+                    {q.name}
+                  </div>
+                </td>
+                <td>{formatPrice(q.price)}</td>
+                <td className={gainClass(q.change)}>
+                  {formatPrice(q.change)} ({formatPercent(q.changePercent)})
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -59,6 +80,7 @@ export default function MarketPage() {
   const [searching, setSearching] = useState(false);
   const [watchQuotes, setWatchQuotes] = useState<Quote[]>([]);
   const [popular, setPopular] = useState<PopularGroup[]>([]);
+  const [watched, setWatched] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
@@ -75,6 +97,7 @@ export default function MarketPage() {
           if (!active) return;
           setWatchQuotes(w.quotes);
           setPopular(p.groups);
+          setWatched(new Set(w.quotes.map((q) => q.symbol)));
         })
         .catch(() => {})
         .finally(() => active && setLoading(false));
@@ -111,6 +134,30 @@ export default function MarketPage() {
 
   const open = (symbol: string) => navigate(`/asset/${symbol}`);
   const showingSearch = query.trim().length > 0;
+
+  // Optimistic watchlist toggle from the quick-star on a row.
+  async function toggleWatch(symbol: string) {
+    const wasWatched = watched.has(symbol);
+    setWatched((prev) => {
+      const next = new Set(prev);
+      if (wasWatched) next.delete(symbol);
+      else next.add(symbol);
+      return next;
+    });
+    try {
+      if (wasWatched) await api.del(`/watchlist/${symbol}`);
+      else await api.post("/watchlist", { symbol });
+    } catch {
+      // Roll back on failure.
+      setWatched((prev) => {
+        const next = new Set(prev);
+        if (wasWatched) next.add(symbol);
+        else next.delete(symbol);
+        return next;
+      });
+    }
+  }
+  const isWatched = (symbol: string) => watched.has(symbol);
 
   return (
     <div>
@@ -164,7 +211,12 @@ export default function MarketPage() {
           {watchQuotes.length > 0 && (
             <section>
               <h2 className="section-title">Your watchlist</h2>
-              <QuoteTable quotes={watchQuotes} onOpen={open} />
+              <QuoteTable
+                quotes={watchQuotes}
+                onOpen={open}
+                isWatched={isWatched}
+                onToggleWatch={toggleWatch}
+              />
             </section>
           )}
 
@@ -174,7 +226,12 @@ export default function MarketPage() {
               g.quotes.length > 0 && (
                 <section key={g.category}>
                   <h2 className="section-title">{CATEGORY_LABELS[g.category] || g.category}</h2>
-                  <QuoteTable quotes={g.quotes} onOpen={open} />
+                  <QuoteTable
+                    quotes={g.quotes}
+                    onOpen={open}
+                    isWatched={isWatched}
+                    onToggleWatch={toggleWatch}
+                  />
                 </section>
               )
           )}

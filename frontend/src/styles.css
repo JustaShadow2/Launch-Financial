@@ -373,6 +373,27 @@ tr.clickable:hover td {
   font-size: 14px;
 }
 
+/* Quick-star toggle in market / watchlist rows. */
+.star-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  transition: color 0.12s ease, transform 0.08s ease;
+}
+.star-btn:hover {
+  color: #ffcb6b;
+}
+.star-btn.on {
+  color: #ffcb6b;
+}
+.star-btn:active {
+  transform: scale(0.85);
+}
+
 /* Forms */
 .field {
   margin-bottom: 16px;
@@ -918,8 +939,8 @@ select:focus {
   transition: transform 0.25s ease;
 }
 .path-node {
-  width: 72px;
-  height: 72px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   border: none;
   background: var(--surface-2);
@@ -927,7 +948,7 @@ select:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 0 var(--border);
+  box-shadow: 0 5px 0 var(--border);
   transition: transform 0.1s ease, filter 0.15s ease;
 }
 .path-node:not(:disabled):hover {
@@ -938,7 +959,7 @@ select:focus {
   box-shadow: 0 2px 0 var(--border) !important;
 }
 .path-node-face {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 800;
 }
 .path-node.completed .path-node-face,
@@ -988,9 +1009,9 @@ select:focus {
   background: var(--border);
 }
 .path-label {
-  margin-top: 8px;
+  margin-top: 6px;
   text-align: center;
-  max-width: 220px;
+  max-width: 200px;
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -2156,10 +2177,10 @@ select:focus {
 /* Full-width colored unit banner, scroll-margin so jumps land below the HUD. */
 .unit-banner {
   border-radius: var(--radius);
-  padding: 16px 20px;
+  padding: 14px 18px;
   color: #04140d;
   box-shadow: var(--shadow-sm);
-  margin-top: 24px;
+  margin-top: 18px;
   scroll-margin-top: 104px;
 }
 .unit-banner-eyebrow {
@@ -2187,11 +2208,16 @@ select:focus {
   margin-top: 2px;
 }
 .unit-trail {
+  --path-amp: 92px; /* serpentine amplitude; smaller = tighter zig-zag */
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 26px;
-  padding: 34px 0 10px;
+  gap: 18px;
+  padding: 26px 0 8px;
+  /* Keep the winding path a tight ribbon down the middle instead of sprawling
+     across the full page width. */
+  max-width: 440px;
+  margin: 0 auto;
 }
 
 /* Penny beside the active node. */
